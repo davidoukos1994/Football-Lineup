@@ -37,3 +37,64 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v7.1.2 history manager */
+.history-manager-v712 {
+  padding: 18px;
+  background: #fff;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.history-tabs-v712 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.history-tabs-v712 button {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.history-tabs-v712 button.active {
+  background: #0f172a;
+  color: white;
+}
+
+.history-content-v712 {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.history-card-v712 {
+  background: #f1f5f9;
+  border-radius: 14px;
+  padding: 12px;
+  line-height: 1.45;
+}
+
+.history-card-v712 b {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.danger-zone-v712 {
+  margin-top: 18px;
+  border-top: 1px solid #cbd5e1;
+  padding-top: 14px;
+}
+
+.danger-zone-v712 button {
+  background: #dc2626;
+  margin-top: 8px;
+}
+
+@media (max-width: 820px) {
+  .history-tabs-v712 {
+    grid-template-columns: 1fr;
+  }
+}

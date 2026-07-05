@@ -163,3 +163,304 @@ load();render();
     init();
   }
 })();
+
+
+/* ===== v7.1.1 clear history button ===== */
+(function () {
+  function initClearHistory() {
+    const btn = document.getElementById("clearHistory");
+    if (!btn) return;
+
+    btn.addEventListener("click", function () {
+      if (!confirm("Να σβηστεί όλο το ιστορικό παικτών και αγώνων; Η τρέχουσα 11άδα δεν θα χαθεί.")) return;
+
+      try {
+        if (typeof playerHistory !== "undefined") playerHistory = {};
+        if (typeof matchHistory !== "undefined") matchHistory = [];
+        if (typeof save === "function") save();
+        alert("Το ιστορικό σβήστηκε.");
+      } catch (err) {
+        alert("Δεν μπόρεσα να σβήσω το ιστορικό.");
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initClearHistory);
+  } else {
+    initClearHistory();
+  }
+})();
+
+
+/* ===== v7.1.2 History Manager ===== */
+(function () {
+  let currentTabV712 = "players";
+
+  function q(id) {
+    return document.getElementById(id);
+  }
+
+  function safeJson(value, fallback) {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      return fallback;
+    }
+  }
+
+  function getStorageObject(key) {
+    return safeJson(localStorage.getItem(key), null);
+  }
+
+  function setStorageObject(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function getPossibleAppStates() {
+    const states = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = getStorageObject(key);
+      if (!value || typeof value !== "object") continue;
+
+      if (
+        Array.isArray(value.players) ||
+        value.playerHistory ||
+        value.matchHistory ||
+        Array.isArray(value.matchHistory)
+      ) {
+        states.push({ key, value });
+      }
+    }
+    return states;
+  }
+
+  function extractPlayersHistory() {
+    const items = [];
+
+    getPossibleAppStates().forEach(({ key, value }) => {
+      if (value.playerHistory && typeof value.playerHistory === "object") {
+        Object.values(value.playerHistory).forEach((p) => {
+          if (!p) return;
+          items.push({
+            source: key,
+            name: p.name || p.playerName || "Παίκτης",
+            matches: p.matches || p.games || 0,
+            goals: p.goals || 0,
+            assists: p.assists || 0,
+            yellow: p.yellow || p.yellows || 0,
+            red: p.red || p.reds || 0,
+            minutes: p.minutes || 0,
+            rating: p.ratingCount ? (p.ratingSum / p.ratingCount).toFixed(1) : (p.avgRating || "-")
+          });
+        });
+      }
+    });
+
+    // Also show current players as current match stats if no aggregate exists
+    if (!items.length && typeof players !== "undefined" && Array.isArray(players)) {
+      players.forEach((p) => {
+        items.push({
+          source: "τρέχων αγώνας",
+          name: p.name || "Παίκτης",
+          matches: p.name ? 1 : 0,
+          goals: p.goals || 0,
+          assists: p.assists || 0,
+          yellow: p.yellow || p.yellows || 0,
+          red: p.red || p.reds || 0,
+          minutes: p.minutes || 0,
+          rating: p.rating || "-"
+        });
+      });
+    }
+
+    return items;
+  }
+
+  function extractMatchesHistory() {
+    const matches = [];
+
+    getPossibleAppStates().forEach(({ key, value }) => {
+      if (Array.isArray(value.matchHistory)) {
+        value.matchHistory.forEach((m) => matches.push({ source: key, ...m }));
+      }
+    });
+
+    return matches;
+  }
+
+  function renderPlayers() {
+    const box = q("historyContentV712");
+    const playersHistory = extractPlayersHistory();
+
+    if (!playersHistory.length) {
+      box.innerHTML = '<div class="history-card-v712">Δεν υπάρχει ιστορικό παικτών.</div>';
+      return;
+    }
+
+    box.innerHTML = playersHistory.map((p) => `
+      <div class="history-card-v712">
+        <b>${escapeHtmlV712(p.name)}</b>
+        Αγώνες: ${p.matches} | Γκολ: ${p.goals} | Ασίστ: ${p.assists} | Λεπτά: ${p.minutes}<br>
+        Κίτρινες: ${p.yellow} | Κόκκινες: ${p.red} | Μ.Ο.: ${p.rating}
+      </div>
+    `).join("");
+  }
+
+  function renderMatches() {
+    const box = q("historyContentV712");
+    const matches = extractMatchesHistory();
+
+    if (!matches.length) {
+      box.innerHTML = '<div class="history-card-v712">Δεν υπάρχει ιστορικό αγώνων.</div>';
+      return;
+    }
+
+    box.innerHTML = matches.map((m) => {
+      const title = `${m.homeTeam || m.home || "Ομάδα"} ${m.homeScore ?? 0}-${m.awayScore ?? 0} ${m.awayTeam || m.away || "Αντίπαλος"}`;
+      const meta = [m.season, m.matchDay, m.matchDate || m.date || m.savedAt, m.formation].filter(Boolean).join(" • ");
+      return `
+        <div class="history-card-v712">
+          <b>${escapeHtmlV712(title)}</b>
+          ${escapeHtmlV712(meta || "Αποθηκευμένος αγώνας")}
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderStorage() {
+    const box = q("historyContentV712");
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (/history|football|coach|lineup|safe|v7|v8/i.test(key)) {
+        keys.push(key);
+      }
+    }
+
+    if (!keys.length) {
+      box.innerHTML = '<div class="history-card-v712">Δεν βρέθηκαν αποθηκευμένα δεδομένα.</div>';
+      return;
+    }
+
+    box.innerHTML = keys.map((key) => `
+      <div class="history-card-v712">
+        <b>${escapeHtmlV712(key)}</b>
+        ${Math.round((localStorage.getItem(key) || "").length / 1024)} KB
+      </div>
+    `).join("");
+  }
+
+  function render() {
+    ["tabPlayersV712", "tabMatchesV712", "tabStorageV712"].forEach((id) => q(id)?.classList.remove("active"));
+    if (currentTabV712 === "players") {
+      q("tabPlayersV712")?.classList.add("active");
+      renderPlayers();
+    } else if (currentTabV712 === "matches") {
+      q("tabMatchesV712")?.classList.add("active");
+      renderMatches();
+    } else {
+      q("tabStorageV712")?.classList.add("active");
+      renderStorage();
+    }
+  }
+
+  function escapeHtmlV712(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[char]));
+  }
+
+  function clearPlayerHistory() {
+    if (!confirm("Να σβηστεί μόνο το ιστορικό παικτών;")) return;
+
+    getPossibleAppStates().forEach(({ key, value }) => {
+      if (value.playerHistory) {
+        value.playerHistory = {};
+        setStorageObject(key, value);
+      }
+    });
+
+    if (typeof playerHistory !== "undefined") {
+      playerHistory = {};
+    }
+
+    if (typeof save === "function") save();
+    render();
+    alert("Το ιστορικό παικτών σβήστηκε.");
+  }
+
+  function clearMatchHistory() {
+    if (!confirm("Να σβηστεί μόνο το ιστορικό αγώνων;")) return;
+
+    getPossibleAppStates().forEach(({ key, value }) => {
+      if (Array.isArray(value.matchHistory)) {
+        value.matchHistory = [];
+        setStorageObject(key, value);
+      }
+    });
+
+    if (typeof matchHistory !== "undefined") {
+      matchHistory = [];
+    }
+
+    if (typeof save === "function") save();
+    render();
+    alert("Το ιστορικό αγώνων σβήστηκε.");
+  }
+
+  function clearAllHistory() {
+    if (!confirm("Να σβηστεί όλο το ιστορικό παικτών και αγώνων; Η τρέχουσα 11άδα θα μείνει.")) return;
+
+    getPossibleAppStates().forEach(({ key, value }) => {
+      if (value.playerHistory) value.playerHistory = {};
+      if (Array.isArray(value.matchHistory)) value.matchHistory = [];
+      setStorageObject(key, value);
+    });
+
+    if (typeof playerHistory !== "undefined") playerHistory = {};
+    if (typeof matchHistory !== "undefined") matchHistory = [];
+
+    if (typeof save === "function") save();
+    render();
+    alert("Όλο το ιστορικό σβήστηκε.");
+  }
+
+  function init() {
+    q("openHistoryManagerV712")?.addEventListener("click", () => {
+      currentTabV712 = "players";
+      render();
+      q("historyManagerDialogV712")?.showModal();
+    });
+
+    q("tabPlayersV712")?.addEventListener("click", () => {
+      currentTabV712 = "players";
+      render();
+    });
+
+    q("tabMatchesV712")?.addEventListener("click", () => {
+      currentTabV712 = "matches";
+      render();
+    });
+
+    q("tabStorageV712")?.addEventListener("click", () => {
+      currentTabV712 = "storage";
+      render();
+    });
+
+    q("clearPlayersHistoryV712")?.addEventListener("click", clearPlayerHistory);
+    q("clearMatchesHistoryV712")?.addEventListener("click", clearMatchHistory);
+    q("clearAllHistoryV712")?.addEventListener("click", clearAllHistory);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

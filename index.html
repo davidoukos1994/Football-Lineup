@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v7.1</title>
+<title>Football Coach v7.1.2.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -66,6 +66,8 @@
     <button id="openNotes">Σημειώσεις</button>
     <button id="saveMatch">Τέλος αγώνα / Αποθήκευση</button>
     <button id="openHistory">Ιστορικό</button>
+    <button id="openHistoryManagerV712" type="button">Διαχείριση ιστορικού</button>
+    <button id="clearHistory" type="button">Σβήσιμο ιστορικού</button>
     <div class="double"><button id="toggleDraw">Βέλη: Off</button><button id="clearDraw">Καθάρισμα</button></div>
     <div class="triple"><button id="resetAll">Reset</button><button id="exportPng">PNG</button><button id="exportPdf">PDF</button></div>
     <p class="tip">Πάτα παίκτη για επεξεργασία. Κράτα και σύρε για μετακίνηση.</p>
@@ -124,6 +126,31 @@
     <div class="modal-head"><h2>Ιστορικό</h2><button value="close">Κλείσιμο</button></div>
     <h3>Στατιστικά παικτών</h3><div id="playerHistory"></div>
     <h3>Αγώνες</h3><div id="matchHistory"></div>
+  </form>
+</dialog>
+
+
+<dialog id="historyManagerDialogV712">
+  <form method="dialog" class="modal history-manager-v712">
+    <div class="modal-head">
+      <h2>Διαχείριση ιστορικού</h2>
+      <button value="close" type="submit">Κλείσιμο</button>
+    </div>
+
+    <div class="history-tabs-v712">
+      <button id="tabPlayersV712" type="button" class="active">Παίκτες</button>
+      <button id="tabMatchesV712" type="button">Αγώνες</button>
+      <button id="tabStorageV712" type="button">Αποθηκευμένα</button>
+    </div>
+
+    <div id="historyContentV712" class="history-content-v712"></div>
+
+    <div class="danger-zone-v712">
+      <h3>Καθαρισμός</h3>
+      <button id="clearPlayersHistoryV712" type="button">Σβήσιμο ιστορικού παικτών</button>
+      <button id="clearMatchesHistoryV712" type="button">Σβήσιμο ιστορικού αγώνων</button>
+      <button id="clearAllHistoryV712" type="button">Σβήσιμο όλου του ιστορικού</button>
+    </div>
   </form>
 </dialog>
 
