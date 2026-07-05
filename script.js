@@ -1850,3 +1850,150 @@ load();render();
 
   window.footballCoachSaveNow = function(){ return robustSave(true); };
 })();
+
+
+/* ===== v7.5.2 logo compression + manual save button ===== */
+(function () {
+  const ROBUST_KEY = "footballCoachV751RobustState";
+  const MAX_LOGO_SIZE = 320;
+  const JPEG_QUALITY = 0.72;
+
+  function q(id) { return document.getElementById(id); }
+
+  function showMessage(text, warning) {
+    let box = document.getElementById("logoStatusV752");
+    const input = q("teamLogo");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "logoStatusV752";
+      box.className = "logo-status-v752";
+      if (input && input.parentNode) input.parentNode.appendChild(box);
+    }
+    box.textContent = text;
+    box.classList.toggle("logo-warning-v752", !!warning);
+  }
+
+  function saveNowV752() {
+    try {
+      if (typeof window.footballCoachSaveNow === "function") {
+        window.footballCoachSaveNow();
+        return;
+      }
+      if (typeof save === "function") save();
+      alert("Αποθηκεύτηκε.");
+    } catch (err) {
+      alert("Δεν μπόρεσα να αποθηκεύσω.");
+    }
+  }
+
+  function dataUrlSizeKb(dataUrl) {
+    return Math.round((String(dataUrl || "").length * 0.75) / 1024);
+  }
+
+  function resizeImageFile(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function () {
+      const img = new Image();
+      img.onload = function () {
+        const scale = Math.min(1, MAX_LOGO_SIZE / Math.max(img.width, img.height));
+        const width = Math.max(1, Math.round(img.width * scale));
+        const height = Math.max(1, Math.round(img.height * scale));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let output = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+        if (dataUrlSizeKb(output) > 250) output = canvas.toDataURL("image/jpeg", 0.55);
+        if (dataUrlSizeKb(output) > 350) {
+          const smallCanvas = document.createElement("canvas");
+          smallCanvas.width = 220;
+          smallCanvas.height = 220;
+          const smallCtx = smallCanvas.getContext("2d");
+          smallCtx.drawImage(img, 0, 0, 220, 220);
+          output = smallCanvas.toDataURL("image/jpeg", 0.5);
+        }
+        callback(output);
+      };
+      img.onerror = function () { callback(reader.result); };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function forceSmallLogoInRobustState(dataUrl) {
+    try {
+      const state = JSON.parse(localStorage.getItem(ROBUST_KEY) || "{}");
+      state.logo = dataUrl;
+      localStorage.setItem(ROBUST_KEY, JSON.stringify(state));
+    } catch (err) {}
+  }
+
+  function applyLogo(dataUrl) {
+    const preview = q("teamLogoPreview");
+    const header = q("headerLogo");
+    if (preview) preview.src = dataUrl;
+    if (header) {
+      header.src = dataUrl;
+      header.style.display = "block";
+    }
+    forceSmallLogoInRobustState(dataUrl);
+    setTimeout(saveNowV752, 200);
+    showMessage("Το σήμα μικρύνθηκε και αποθηκεύτηκε (" + dataUrlSizeKb(dataUrl) + " KB).", false);
+  }
+
+  function wireCompressedLogo() {
+    const input = q("teamLogo");
+    if (!input || input.dataset.v752Ready === "1") return;
+    input.dataset.v752Ready = "1";
+
+    input.addEventListener("change", function (event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      showMessage("Μικραίνω το σήμα για να αποθηκευτεί στο κινητό...", false);
+      resizeImageFile(file, function (smallDataUrl) {
+        applyLogo(smallDataUrl);
+        setTimeout(function () { applyLogo(smallDataUrl); }, 1200);
+      });
+    }, true);
+  }
+
+  function patchSaveNow() {
+    const oldSaveNow = window.footballCoachSaveNow;
+    if (typeof oldSaveNow === "function" && !window.__v752SavePatched) {
+      window.footballCoachSaveNow = function () {
+        try {
+          const logo = q("headerLogo")?.src || q("teamLogoPreview")?.src || "";
+          if (logo && logo.startsWith("data:") && dataUrlSizeKb(logo) < 400) {
+            forceSmallLogoInRobustState(logo);
+          }
+        } catch (err) {}
+        return oldSaveNow();
+      };
+      window.__v752SavePatched = true;
+    }
+  }
+
+  function init() {
+    wireCompressedLogo();
+    patchSaveNow();
+
+    q("saveNowV752")?.addEventListener("click", function () {
+      saveNowV752();
+      showMessage("Έγινε χειροκίνητη αποθήκευση.", false);
+    });
+
+    setInterval(function () {
+      wireCompressedLogo();
+      patchSaveNow();
+    }, 1500);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

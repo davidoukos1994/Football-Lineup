@@ -518,3 +518,9 @@
 .save-status-v751{position:fixed;right:12px;bottom:12px;background:#166534;color:white;border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px;z-index:99999;opacity:0;transition:opacity .2s ease;pointer-events:none}
 .save-status-v751.show{opacity:1}
 @media(max-width:820px){.backup-v751-grid{grid-template-columns:1fr}}
+
+
+/* v7.5.2 logo compression + save button */
+.save-v752-grid {display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.logo-status-v752 {margin-top:6px;color:#166534;font-weight:800;font-size:13px}
+.logo-warning-v752 {color:#b45309}
