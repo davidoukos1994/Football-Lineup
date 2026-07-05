@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Football Lineup Builder Pro</title>
+  <title>Football Lineup Builder Match</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -32,9 +32,23 @@
         <option value="5-3-2">5-3-2</option>
       </select>
 
-      <div class="toggle-row">
-        <label for="kitColor">Χρώμα παικτών</label>
-        <input id="kitColor" type="color" value="#0f172a" />
+      <h2>Σκορ</h2>
+      <div class="score-editor">
+        <input id="homeTeam" type="text" value="Η Ομάδα μου" placeholder="Ομάδα" />
+        <input id="homeScore" type="number" value="0" min="0" />
+        <span>-</span>
+        <input id="awayScore" type="number" value="0" min="0" />
+        <input id="awayTeam" type="text" value="Αντίπαλος" placeholder="Αντίπαλος" />
+      </div>
+
+      <h2>Χρονόμετρο</h2>
+      <div class="timer-panel">
+        <div id="timerDisplay">00:00</div>
+        <div class="timer-buttons">
+          <button id="timerStart" type="button">Start</button>
+          <button id="timerStop" type="button">Stop</button>
+          <button id="timerReset" type="button">Reset</button>
+        </div>
       </div>
 
       <h2>Παίκτες 11άδας</h2>
@@ -44,7 +58,8 @@
       <div id="subsList" class="subs-list"></div>
       <button id="addSub" type="button">+ Προσθήκη αναπληρωματικού</button>
 
-      <h2>Σχεδίαση τακτικής</h2>
+      <h2>Εργαλεία</h2>
+      <button id="openNotes" type="button">Άνοιγμα σημειώσεων</button>
       <div class="draw-actions">
         <button id="toggleDraw" type="button">Σχεδίαση: Κλειστή</button>
         <button id="clearDraw" type="button">Καθάρισμα γραμμών</button>
@@ -60,31 +75,34 @@
     </aside>
 
     <main class="pitch-wrap" id="captureArea">
-      <header class="team-header">
-        <img id="headerLogo" class="header-logo" alt="" />
-        <h1 id="teamTitle">Η Ομάδα μου</h1>
+      <header class="match-header">
+        <div class="team-title-wrap">
+          <img id="headerLogo" class="header-logo" alt="" />
+          <h1 id="teamTitle">Η Ομάδα μου</h1>
+        </div>
+        <div class="scoreboard">
+          <strong id="scoreHomeName">Η Ομάδα μου</strong>
+          <span id="scoreHome">0</span>
+          <span class="dash">-</span>
+          <span id="scoreAway">0</span>
+          <strong id="scoreAwayName">Αντίπαλος</strong>
+        </div>
+        <div class="timer-live" id="timerLive">00:00</div>
       </header>
 
-      <div class="board">
-        <section class="notes-card">
-          <h2>Σημειώσεις</h2>
-          <textarea id="notes" placeholder="Γράψε εδώ οδηγίες, τακτική, στημένες φάσεις, αλλαγές κτλ."></textarea>
-        </section>
-
-        <section id="pitch" class="pitch" aria-label="Γήπεδο ποδοσφαίρου">
-          <canvas id="drawCanvas"></canvas>
-          <div class="halfway"></div>
-          <div class="center-circle"></div>
-          <div class="center-spot"></div>
-          <div class="box box-top"></div>
-          <div class="box box-bottom"></div>
-          <div class="six six-top"></div>
-          <div class="six six-bottom"></div>
-          <div class="penalty penalty-top"></div>
-          <div class="penalty penalty-bottom"></div>
-          <div id="playersOnPitch"></div>
-        </section>
-      </div>
+      <section id="pitch" class="pitch" aria-label="Γήπεδο ποδοσφαίρου">
+        <canvas id="drawCanvas"></canvas>
+        <div class="halfway"></div>
+        <div class="center-circle"></div>
+        <div class="center-spot"></div>
+        <div class="box box-top"></div>
+        <div class="box box-bottom"></div>
+        <div class="six six-top"></div>
+        <div class="six six-bottom"></div>
+        <div class="penalty penalty-top"></div>
+        <div class="penalty penalty-bottom"></div>
+        <div id="playersOnPitch"></div>
+      </section>
 
       <section class="subs-card">
         <h2>Αναπληρωματικοί</h2>
@@ -92,6 +110,16 @@
       </section>
     </main>
   </div>
+
+  <dialog id="notesDialog">
+    <form method="dialog" class="notes-modal">
+      <div class="modal-head">
+        <h2>Σημειώσεις</h2>
+        <button value="close" type="submit">Κλείσιμο</button>
+      </div>
+      <textarea id="notes" placeholder="Γράψε εδώ οδηγίες, τακτική, στημένες φάσεις, αλλαγές κτλ."></textarea>
+    </form>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
