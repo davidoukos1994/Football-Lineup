@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v7.2.2.2</title>
+<title>Football Coach v7.3.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -64,9 +64,12 @@
 
     <h2>Εργαλεία</h2>
     <button id="openNotes">Σημειώσεις</button>
+    <button id="openAttendanceV73" type="button">Παρουσιολόγιο</button>
     <button id="saveMatch">Τέλος αγώνα / Αποθήκευση</button>
+    <button id="saveMatchV73" type="button">Αποθήκευση αγώνα</button>
     <button id="openHistory">Ιστορικό</button>
     <button id="openHistoryManagerV712" type="button">Διαχείριση ιστορικού</button>
+    <button id="openPlayerStatsV73" type="button">Στατιστικά παικτών</button>
     <button id="clearHistory" type="button">Σβήσιμο ιστορικού</button>
     <div class="double"><button id="toggleDraw">Βέλη: Off</button><button id="clearDraw">Καθάρισμα</button></div>
     <div class="triple"><button id="resetAll">Reset</button><button id="exportPng">PNG</button><button id="exportPdf">PDF</button></div>
@@ -198,6 +201,60 @@
     <div id="quickPlayerSummaryV72" class="quick-summary-v72"></div>
 
     <button id="quickSavePlayerV72" value="close" type="submit">Αποθήκευση</button>
+  </form>
+</dialog>
+
+
+<dialog id="playerStatsDialogV73">
+  <form method="dialog" class="modal player-stats-v73">
+    <div class="modal-head">
+      <h2>Στατιστικά παικτών</h2>
+      <button value="close" type="submit">Κλείσιμο</button>
+    </div>
+    <div class="stats-actions-v73">
+      <button id="exportStatsV73" type="button">Εξαγωγή στατιστικών JSON</button>
+      <button id="clearPlayerStatsV73" type="button">Σβήσιμο στατιστικών</button>
+    </div>
+    <div id="playerStatsListV73" class="player-stats-list-v73"></div>
+  </form>
+</dialog>
+
+
+<dialog id="attendanceDialogV73">
+  <form method="dialog" class="modal attendance-v73">
+    <div class="modal-head">
+      <h2>Παρουσιολόγιο</h2>
+      <button value="close" type="submit">Κλείσιμο</button>
+    </div>
+
+    <div class="attendance-controls-v73">
+      <div>
+        <label for="attendanceMonthV73">Μήνας</label>
+        <select id="attendanceMonthV73"></select>
+      </div>
+      <div>
+        <label for="attendanceYearV73">Έτος</label>
+        <input id="attendanceYearV73" type="number" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="buildAttendanceV73" type="button">Άνοιγμα</button>
+      </div>
+    </div>
+
+    <p class="attendance-tip-v73">Πάτημα στο κουτάκι: κενό → ✓ παρών → Χ απών → κενό.</p>
+
+    <div class="attendance-actions-v73">
+      <button id="syncAttendancePlayersV73" type="button">Παίκτες από 11άδα/πάγκο</button>
+      <button id="addAttendancePlayerV73" type="button">+ Προσθήκη παίκτη</button>
+      <button id="clearAttendanceMonthV73" type="button">Καθαρισμός μήνα</button>
+    </div>
+
+    <div id="attendanceSummaryV73" class="attendance-summary-v73"></div>
+
+    <div class="attendance-table-wrap-v73">
+      <table id="attendanceTableV73"></table>
+    </div>
   </form>
 </dialog>
 

@@ -677,3 +677,343 @@ load();render();
     init();
   }
 })();
+
+
+/* ===== v7.3 player history + match save ===== */
+(function () {
+  const HISTORY_KEY_V73 = "footballCoachV73History";
+
+  function q(id) { return document.getElementById(id); }
+  function safeParse(value, fallback) { try { return JSON.parse(value); } catch (err) { return fallback; } }
+  function loadHistoryV73() {
+    const saved = safeParse(localStorage.getItem(HISTORY_KEY_V73), null);
+    return saved && typeof saved === "object" ? { players: saved.players || {}, matches: Array.isArray(saved.matches) ? saved.matches : [] } : { players: {}, matches: [] };
+  }
+  function saveHistoryV73(history) { localStorage.setItem(HISTORY_KEY_V73, JSON.stringify(history)); }
+  function playerKeyV73(name) { return String(name || "").trim().toLowerCase(); }
+  function numV73(value) { const n = Number(value || 0); return Number.isFinite(n) ? n : 0; }
+
+  function currentMatchDataV73() {
+    const get = (id) => q(id)?.value || "";
+    return {
+      id: Date.now(),
+      savedAt: new Date().toLocaleString("el-GR"),
+      season: get("matchSeasonV71") || get("matchSeasonSafe") || "",
+      matchType: get("matchTypeV71") || get("matchTypeSafe") || "",
+      matchDay: get("matchDayV71") || get("matchDaySafe") || "",
+      matchDate: get("matchDateV71") || get("matchDateSafe") || new Date().toLocaleDateString("el-GR"),
+      homeTeam: get("homeTeam") || get("teamName") || "Η Ομάδα μου",
+      awayTeam: get("awayTeam") || "Αντίπαλος",
+      homeScore: get("homeScore") || 0,
+      awayScore: get("awayScore") || 0,
+      formation: typeof currentFormation !== "undefined" ? currentFormation : "",
+      timerSeconds: typeof timerSeconds !== "undefined" ? timerSeconds : 0,
+      notes: get("notes") || "",
+      players: typeof players !== "undefined" ? JSON.parse(JSON.stringify(players)) : [],
+      subs: typeof subs !== "undefined" ? JSON.parse(JSON.stringify(subs)) : []
+    };
+  }
+
+  function updatePlayerTotalsV73(history, match) {
+    match.players.forEach((player, index) => {
+      const name = String(player?.name || `Παίκτης ${index + 1}`).trim();
+      if (!name) return;
+      const key = playerKeyV73(name);
+      if (!history.players[key]) {
+        history.players[key] = { name, number: String(player?.number || index + 1), matches: 0, goals: 0, assists: 0, yellow: 0, red: 0, minutes: 0, ratingSum: 0, ratingCount: 0 };
+      }
+      const item = history.players[key];
+      item.name = name;
+      item.number = String(player?.number || index + 1);
+      item.matches += 1;
+      item.goals += numV73(player?.goals);
+      item.assists += numV73(player?.assists);
+      item.yellow += numV73(player?.yellow || player?.yellows);
+      item.red += numV73(player?.red || player?.reds);
+      item.minutes += numV73(player?.minutes);
+      if (player?.rating !== undefined && player.rating !== "") {
+        item.ratingSum += numV73(player.rating);
+        item.ratingCount += 1;
+      }
+    });
+  }
+
+  function saveCurrentMatchV73() {
+    const history = loadHistoryV73();
+    const match = currentMatchDataV73();
+    history.matches.unshift(match);
+    updatePlayerTotalsV73(history, match);
+    saveHistoryV73(history);
+
+    try {
+      if (typeof matchHistory !== "undefined" && Array.isArray(matchHistory)) matchHistory.unshift(match);
+      if (typeof playerHistory !== "undefined" && playerHistory) Object.assign(playerHistory, history.players);
+      if (typeof save === "function") save();
+    } catch (err) {}
+
+    alert("Ο αγώνας αποθηκεύτηκε και ενημερώθηκαν τα στατιστικά παικτών.");
+  }
+
+  function escapeHtmlV73(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  }
+  function avgRatingV73(player) { return player.ratingCount ? (player.ratingSum / player.ratingCount).toFixed(1) : "-"; }
+
+  function renderPlayerStatsV73() {
+    const box = q("playerStatsListV73");
+    if (!box) return;
+    const history = loadHistoryV73();
+    const list = Object.values(history.players).sort((a, b) => ((b.goals || 0) - (a.goals || 0)) || ((b.matches || 0) - (a.matches || 0)));
+    if (!list.length) {
+      box.innerHTML = '<div class="player-stat-card-v73">Δεν υπάρχουν ακόμα στατιστικά. Πάτησε «Αποθήκευση αγώνα» μετά από έναν αγώνα.</div>';
+      return;
+    }
+    box.innerHTML = list.map((p) => `
+      <div class="player-stat-card-v73">
+        <b>${escapeHtmlV73(p.name)} ${p.number ? "(" + escapeHtmlV73(p.number) + ")" : ""}</b>
+        <div class="player-stat-row-v73">
+          <span>Αγώνες: ${p.matches || 0}</span>
+          <span>Γκολ: ${p.goals || 0}</span>
+          <span>Ασίστ: ${p.assists || 0}</span>
+          <span>Λεπτά: ${p.minutes || 0}</span>
+          <span>Κίτρινες: ${p.yellow || 0}</span>
+          <span>Κόκκινες: ${p.red || 0}</span>
+          <span>Μ.Ο.: ${avgRatingV73(p)}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function exportStatsV73() {
+    const history = loadHistoryV73();
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "football-player-stats-v7-3.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function clearStatsV73() {
+    if (!confirm("Να σβηστούν τα στατιστικά παικτών και οι αποθηκευμένοι αγώνες της v7.3;")) return;
+    localStorage.removeItem(HISTORY_KEY_V73);
+    renderPlayerStatsV73();
+    alert("Τα στατιστικά σβήστηκαν.");
+  }
+
+  function init() {
+    q("saveMatchV73")?.addEventListener("click", saveCurrentMatchV73);
+    q("openPlayerStatsV73")?.addEventListener("click", () => { renderPlayerStatsV73(); q("playerStatsDialogV73")?.showModal(); });
+    q("exportStatsV73")?.addEventListener("click", exportStatsV73);
+    q("clearPlayerStatsV73")?.addEventListener("click", clearStatsV73);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+
+
+/* ===== v7.3 attendance - button/modal only ===== */
+(function () {
+  const ATT_KEY_V73 = "footballCoachV73Attendance";
+
+  function q(id) { return document.getElementById(id); }
+
+  function safeParse(value, fallback) {
+    try { return JSON.parse(value); } catch (err) { return fallback; }
+  }
+
+  function loadAttendanceV73() {
+    return safeParse(localStorage.getItem(ATT_KEY_V73), {}) || {};
+  }
+
+  function saveAttendanceV73(data) {
+    localStorage.setItem(ATT_KEY_V73, JSON.stringify(data));
+  }
+
+  function monthKeyV73() {
+    const y = q("attendanceYearV73")?.value || new Date().getFullYear();
+    const m = String(Number(q("attendanceMonthV73")?.value || 0) + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }
+
+  function daysInMonthV73() {
+    const y = Number(q("attendanceYearV73")?.value || new Date().getFullYear());
+    const m = Number(q("attendanceMonthV73")?.value || 0);
+    return new Date(y, m + 1, 0).getDate();
+  }
+
+  function currentNamesV73() {
+    const names = [];
+    try {
+      if (typeof players !== "undefined" && Array.isArray(players)) {
+        players.forEach((p) => {
+          const name = String(p?.name || "").trim();
+          if (name) names.push(name);
+        });
+      }
+      if (typeof subs !== "undefined" && Array.isArray(subs)) {
+        subs.forEach((s) => {
+          const name = String(s || "").trim();
+          if (name) names.push(name);
+        });
+      }
+    } catch (err) {}
+    return [...new Set(names)];
+  }
+
+  function ensureMonthV73(syncCurrentPlayers = true) {
+    const all = loadAttendanceV73();
+    const key = monthKeyV73();
+
+    if (!all[key]) all[key] = { players: [], data: {} };
+
+    if (syncCurrentPlayers) {
+      currentNamesV73().forEach((name) => {
+        if (!all[key].players.includes(name)) all[key].players.push(name);
+      });
+    }
+
+    saveAttendanceV73(all);
+    return all[key];
+  }
+
+  function escapeHtmlV73(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[char]));
+  }
+
+  function renderSummaryV73(monthData) {
+    let present = 0;
+    let absent = 0;
+
+    Object.values(monthData.data || {}).forEach((v) => {
+      if (v === "✓") present++;
+      if (v === "Χ") absent++;
+    });
+
+    const box = q("attendanceSummaryV73");
+    if (box) box.textContent = `Παρουσίες: ${present} | Απουσίες: ${absent} | Παίκτες: ${monthData.players.length}`;
+  }
+
+  function renderAttendanceV73(syncCurrentPlayers = true) {
+    const table = q("attendanceTableV73");
+    if (!table) return;
+
+    const all = loadAttendanceV73();
+    const key = monthKeyV73();
+
+    let monthData = ensureMonthV73(syncCurrentPlayers);
+    const latestAll = loadAttendanceV73();
+    monthData = latestAll[key] || monthData;
+
+    const days = daysInMonthV73();
+
+    let html = "<tr><th>Παίκτης</th>";
+    for (let d = 1; d <= days; d++) html += `<th>${d}</th>`;
+    html += "</tr>";
+
+    monthData.players.forEach((name) => {
+      html += `<tr><td>${escapeHtmlV73(name)}</td>`;
+      for (let d = 1; d <= days; d++) {
+        const cellKey = `${name}|${d}`;
+        const value = monthData.data[cellKey] || "";
+        const cls = value === "✓" ? "att-present-v73" : value === "Χ" ? "att-absent-v73" : "";
+        html += `<td class="att-cell-v73 ${cls}" data-name="${escapeHtmlV73(name)}" data-day="${d}">${value}</td>`;
+      }
+      html += "</tr>";
+    });
+
+    table.innerHTML = html;
+
+    table.querySelectorAll(".att-cell-v73").forEach((td) => {
+      td.addEventListener("click", () => {
+        const allNow = loadAttendanceV73();
+        if (!allNow[key]) allNow[key] = { players: [], data: {} };
+
+        const cellKey = `${td.dataset.name}|${td.dataset.day}`;
+        const current = allNow[key].data[cellKey] || "";
+        allNow[key].data[cellKey] = current === "" ? "✓" : current === "✓" ? "Χ" : "";
+
+        saveAttendanceV73(allNow);
+        renderAttendanceV73(false);
+      });
+    });
+
+    renderSummaryV73(monthData);
+  }
+
+  function setupMonthSelectV73() {
+    const monthSelect = q("attendanceMonthV73");
+    const yearInput = q("attendanceYearV73");
+    if (!monthSelect || !yearInput || monthSelect.dataset.ready === "1") return;
+
+    const labels = ["Ιαν", "Φεβ", "Μαρ", "Απρ", "Μάι", "Ιουν", "Ιουλ", "Αυγ", "Σεπ", "Οκτ", "Νοε", "Δεκ"];
+    labels.forEach((label, index) => {
+      const option = document.createElement("option");
+      option.value = index;
+      option.textContent = label;
+      monthSelect.appendChild(option);
+    });
+
+    const now = new Date();
+    monthSelect.value = now.getMonth();
+    yearInput.value = now.getFullYear();
+    monthSelect.dataset.ready = "1";
+  }
+
+  function openAttendanceV73() {
+    setupMonthSelectV73();
+    renderAttendanceV73(true);
+    q("attendanceDialogV73")?.showModal();
+  }
+
+  function addPlayerV73() {
+    const name = prompt("Όνομα παίκτη:");
+    if (!name || !name.trim()) return;
+
+    const all = loadAttendanceV73();
+    const key = monthKeyV73();
+    if (!all[key]) all[key] = { players: [], data: {} };
+
+    const clean = name.trim();
+    if (!all[key].players.includes(clean)) all[key].players.push(clean);
+
+    saveAttendanceV73(all);
+    renderAttendanceV73(false);
+  }
+
+  function syncPlayersV73() {
+    ensureMonthV73(true);
+    renderAttendanceV73(false);
+  }
+
+  function clearMonthV73() {
+    if (!confirm("Να καθαριστεί το παρουσιολόγιο αυτού του μήνα;")) return;
+
+    const all = loadAttendanceV73();
+    const key = monthKeyV73();
+    delete all[key];
+
+    saveAttendanceV73(all);
+    renderAttendanceV73(true);
+  }
+
+  function init() {
+    q("openAttendanceV73")?.addEventListener("click", openAttendanceV73);
+    q("buildAttendanceV73")?.addEventListener("click", () => renderAttendanceV73(true));
+    q("addAttendancePlayerV73")?.addEventListener("click", addPlayerV73);
+    q("syncAttendancePlayersV73")?.addEventListener("click", syncPlayersV73);
+    q("clearAttendanceMonthV73")?.addEventListener("click", clearMonthV73);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
