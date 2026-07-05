@@ -331,3 +331,97 @@
     min-width: 760px;
   }
 }
+
+
+/* v7.4 roster / match squad */
+.roster-v74 {
+  padding: 18px;
+  background: white;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.roster-actions-v74 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.roster-actions-v74 button:last-child {
+  background: #dc2626;
+}
+
+.roster-tip-v74 {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.roster-table-wrap-v74 {
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  margin-top: 12px;
+}
+
+#rosterTableV74 {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 1040px;
+  background: white;
+}
+
+#rosterTableV74 th,
+#rosterTableV74 td {
+  border: 1px solid #cbd5e1;
+  padding: 7px;
+  text-align: center;
+  font-size: 13px;
+}
+
+#rosterTableV74 th:first-child,
+#rosterTableV74 td:first-child {
+  position: sticky;
+  left: 0;
+  background: #f8fafc;
+  z-index: 2;
+}
+
+#rosterTableV74 input,
+#rosterTableV74 select {
+  padding: 7px;
+  font-size: 13px;
+}
+
+.roster-name-v74 { min-width: 180px; }
+.roster-positions-v74 { min-width: 170px; }
+.roster-small-v74 { width: 72px; }
+
+.roster-delete-v74 {
+  background: #dc2626;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 9px;
+  cursor: pointer;
+}
+
+.squad-preview-v74 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.squad-pill-v74 {
+  background: #e2e8f0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 820px) {
+  .roster-actions-v74 { grid-template-columns: 1fr; }
+  #rosterTableV74 { min-width: 920px; }
+}

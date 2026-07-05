@@ -1017,3 +1017,299 @@ load();render();
     init();
   }
 })();
+
+
+/* ===== v7.4 roster + match squad ===== */
+(function () {
+  const ROSTER_KEY_V74 = "footballCoachV74Roster";
+
+  function q(id) { return document.getElementById(id); }
+  function safeParse(value, fallback) { try { return JSON.parse(value); } catch (err) { return fallback; } }
+
+  function loadRosterV74() {
+    const data = safeParse(localStorage.getItem(ROSTER_KEY_V74), null);
+    if (data && typeof data === "object") {
+      return {
+        roster: Array.isArray(data.roster) ? data.roster : [],
+        squad: Array.isArray(data.squad) ? data.squad : []
+      };
+    }
+    return { roster: [], squad: [] };
+  }
+
+  function saveRosterV74(data) {
+    localStorage.setItem(ROSTER_KEY_V74, JSON.stringify(data));
+  }
+
+  function newRosterPlayerV74(name = "") {
+    return {
+      id: Date.now() + Math.floor(Math.random() * 100000),
+      name: name || "",
+      number: "",
+      positions: "",
+      foot: "right",
+      minutes: 0,
+      goals: 0,
+      yellow: 0,
+      red: 0
+    };
+  }
+
+  function escapeHtmlV74(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    }[char]));
+  }
+
+  function selectedSquadPlayersV74() {
+    const data = loadRosterV74();
+    return data.squad.map((id) => data.roster.find((p) => String(p.id) === String(id))).filter(Boolean);
+  }
+
+  function syncRosterFromLineupV74() {
+    const data = loadRosterV74();
+    const existing = new Set(data.roster.map((p) => String(p.name || "").trim().toLowerCase()));
+
+    try {
+      if (typeof players !== "undefined" && Array.isArray(players)) {
+        players.forEach((p, index) => {
+          const name = String(p?.name || "").trim();
+          if (!name) return;
+          const key = name.toLowerCase();
+          if (!existing.has(key)) {
+            data.roster.push({
+              ...newRosterPlayerV74(name),
+              number: String(p?.number || index + 1),
+              minutes: Number(p?.minutes || 0),
+              goals: Number(p?.goals || 0),
+              yellow: Number(p?.yellow || p?.yellows || 0),
+              red: Number(p?.red || p?.reds || 0)
+            });
+            existing.add(key);
+          }
+        });
+      }
+    } catch (err) {}
+
+    saveRosterV74(data);
+    renderRosterV74();
+  }
+
+  function applySquadToLineupV74() {
+    const squad = selectedSquadPlayersV74();
+    if (!squad.length) {
+      alert("Δεν έχεις επιλέξει παίκτες στην αποστολή.");
+      return;
+    }
+
+    try {
+      if (typeof players !== "undefined" && Array.isArray(players)) {
+        for (let i = 0; i < players.length; i++) {
+          const rp = squad[i];
+          if (rp) {
+            players[i].name = rp.name || `Παίκτης ${i + 1}`;
+            players[i].number = rp.number || String(i + 1);
+            players[i].minutes = Number(rp.minutes || 0);
+            players[i].goals = Number(rp.goals || 0);
+            players[i].yellow = Number(rp.yellow || 0);
+            players[i].red = Number(rp.red || 0);
+          } else {
+            players[i].name = "";
+            players[i].number = "";
+            players[i].minutes = 0;
+            players[i].goals = 0;
+            players[i].yellow = 0;
+            players[i].red = 0;
+          }
+        }
+      }
+
+      if (typeof subs !== "undefined" && Array.isArray(subs)) {
+        subs.length = 0;
+        squad.slice(11).forEach((rp) => subs.push(rp.name || ""));
+      }
+
+      if (typeof render === "function") render();
+      else {
+        if (typeof renderPitch === "function") renderPitch();
+        if (typeof renderPlayerInputs === "function") renderPlayerInputs();
+        if (typeof renderSubs === "function") renderSubs();
+        if (typeof save === "function") save();
+      }
+
+      alert("Η αποστολή πέρασε αριστερά: πρώτοι 11 στην 11άδα και οι υπόλοιποι αναπληρωματικοί.");
+    } catch (err) {
+      alert("Δεν μπόρεσα να περάσω την αποστολή.");
+    }
+  }
+
+  function renderSquadPreviewV74() {
+    const box = q("squadPreviewV74");
+    if (!box) return;
+
+    const squad = selectedSquadPlayersV74();
+    if (!squad.length) {
+      box.innerHTML = '<span class="squad-pill-v74">Δεν έχεις επιλέξει αποστολή.</span>';
+      return;
+    }
+
+    box.innerHTML = squad.map((p, index) => {
+      const role = index < 11 ? "11άδα" : "Πάγκος";
+      return `<span class="squad-pill-v74">${index + 1}. ${escapeHtmlV74(p.name)} • ${role}${p.positions ? " • " + escapeHtmlV74(p.positions) : ""}</span>`;
+    }).join("");
+  }
+
+  function renderRosterV74() {
+    const table = q("rosterTableV74");
+    if (!table) return;
+    const data = loadRosterV74();
+
+    let html = `
+      <tr>
+        <th>Αποστολή</th>
+        <th>Ονοματεπώνυμο</th>
+        <th>Νο.</th>
+        <th>Θέσεις</th>
+        <th>Πόδι</th>
+        <th>Λεπτά</th>
+        <th>Γκολ</th>
+        <th>Κίτρινες</th>
+        <th>Κόκκινες</th>
+        <th>Διαγραφή</th>
+      </tr>
+    `;
+
+    data.roster.forEach((p, index) => {
+      const checked = data.squad.includes(p.id) ? "checked" : "";
+      html += `
+        <tr data-id="${p.id}">
+          <td><input type="checkbox" class="roster-squad-v74" ${checked}></td>
+          <td><input class="roster-name-v74" data-field="name" value="${escapeHtmlV74(p.name)}"></td>
+          <td><input class="roster-small-v74" data-field="number" value="${escapeHtmlV74(p.number)}"></td>
+          <td><input class="roster-positions-v74" data-field="positions" value="${escapeHtmlV74(p.positions)}" placeholder="CM, ST"></td>
+          <td>
+            <select data-field="foot">
+              <option value="right" ${p.foot === "right" ? "selected" : ""}>Δεξί</option>
+              <option value="left" ${p.foot === "left" ? "selected" : ""}>Αριστερό</option>
+              <option value="both" ${p.foot === "both" ? "selected" : ""}>Και τα δύο</option>
+            </select>
+          </td>
+          <td><input class="roster-small-v74" type="number" min="0" data-field="minutes" value="${Number(p.minutes || 0)}"></td>
+          <td><input class="roster-small-v74" type="number" min="0" data-field="goals" value="${Number(p.goals || 0)}"></td>
+          <td><input class="roster-small-v74" type="number" min="0" data-field="yellow" value="${Number(p.yellow || 0)}"></td>
+          <td><input class="roster-small-v74" type="number" min="0" data-field="red" value="${Number(p.red || 0)}"></td>
+          <td><button type="button" class="roster-delete-v74" data-index="${index}">×</button></td>
+        </tr>
+      `;
+    });
+
+    table.innerHTML = html;
+
+    table.querySelectorAll("input[data-field], select[data-field]").forEach((input) => {
+      input.addEventListener("input", updateRosterFromTableV74);
+      input.addEventListener("change", updateRosterFromTableV74);
+    });
+
+    table.querySelectorAll(".roster-squad-v74").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        updateRosterFromTableV74();
+        renderSquadPreviewV74();
+      });
+    });
+
+    table.querySelectorAll(".roster-delete-v74").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const dataNow = loadRosterV74();
+        const index = Number(btn.dataset.index);
+        const removed = dataNow.roster[index];
+        if (!removed) return;
+        if (!confirm(`Να διαγραφεί ο παίκτης ${removed.name || ""};`)) return;
+        dataNow.roster.splice(index, 1);
+        dataNow.squad = dataNow.squad.filter((id) => String(id) !== String(removed.id));
+        saveRosterV74(dataNow);
+        renderRosterV74();
+      });
+    });
+
+    renderSquadPreviewV74();
+  }
+
+  function updateRosterFromTableV74() {
+    const data = loadRosterV74();
+    const rows = Array.from(document.querySelectorAll("#rosterTableV74 tr[data-id]"));
+    const nextSquad = [];
+
+    rows.forEach((row) => {
+      const id = Number(row.dataset.id);
+      const player = data.roster.find((p) => Number(p.id) === id);
+      if (!player) return;
+
+      row.querySelectorAll("input[data-field], select[data-field]").forEach((input) => {
+        const field = input.dataset.field;
+        if (["minutes", "goals", "yellow", "red"].includes(field)) player[field] = Number(input.value || 0);
+        else player[field] = input.value;
+      });
+
+      if (row.querySelector(".roster-squad-v74")?.checked) nextSquad.push(player.id);
+    });
+
+    data.squad = nextSquad;
+    saveRosterV74(data);
+    renderSquadPreviewV74();
+  }
+
+  function addRosterPlayerV74() {
+    const data = loadRosterV74();
+    data.roster.push(newRosterPlayerV74(""));
+    saveRosterV74(data);
+    renderRosterV74();
+  }
+
+  function clearSquadV74() {
+    if (!confirm("Να καθαριστεί η επιλεγμένη αποστολή;")) return;
+    const data = loadRosterV74();
+    data.squad = [];
+    saveRosterV74(data);
+    renderRosterV74();
+  }
+
+  function fillSquadSelectV74() {
+    const select = q("assignFromSquadV74");
+    if (!select) return;
+
+    const squad = selectedSquadPlayersV74();
+    select.innerHTML = '<option value="">-- διάλεξε παίκτη --</option>' + squad.map((p, index) =>
+      `<option value="${p.id}">${index + 1}. ${escapeHtmlV74(p.name)}${p.positions ? " • " + escapeHtmlV74(p.positions) : ""}</option>`
+    ).join("");
+  }
+
+  function assignSelectedToQuickPlayerV74(id) {
+    const player = selectedSquadPlayersV74().find((p) => String(p.id) === String(id));
+    if (!player) return;
+    if (q("quickPlayerNameV72")) q("quickPlayerNameV72").value = player.name || "";
+    if (q("quickPlayerNumberV72")) q("quickPlayerNumberV72").value = player.number || "";
+    if (q("quickPlayerGoalsV72")) q("quickPlayerGoalsV72").value = Number(player.goals || 0);
+    if (q("quickPlayerYellowV72")) q("quickPlayerYellowV72").value = Number(player.yellow || 0);
+    if (q("quickPlayerRedV72")) q("quickPlayerRedV72").value = Number(player.red || 0);
+    if (q("quickPlayerMinutesV72")) q("quickPlayerMinutesV72").value = Number(player.minutes || 0);
+  }
+
+  function init() {
+    q("openRosterV74")?.addEventListener("click", () => {
+      renderRosterV74();
+      q("rosterDialogV74")?.showModal();
+    });
+
+    q("addRosterPlayerV74")?.addEventListener("click", addRosterPlayerV74);
+    q("syncRosterFromLineupV74")?.addEventListener("click", syncRosterFromLineupV74);
+    q("applySquadToLineupV74")?.addEventListener("click", applySquadToLineupV74);
+    q("clearSquadV74")?.addEventListener("click", clearSquadV74);
+
+    q("assignFromSquadV74")?.addEventListener("focus", fillSquadSelectV74);
+    q("assignFromSquadV74")?.addEventListener("click", fillSquadSelectV74);
+    q("assignFromSquadV74")?.addEventListener("change", (e) => assignSelectedToQuickPlayerV74(e.target.value));
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

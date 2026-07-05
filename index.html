@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v7.3.2.2</title>
+<title>Football Coach v7.4.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -55,7 +55,7 @@
       <div class="triple"><button id="timerStart">Start</button><button id="timerStop">Stop</button><button id="timerReset">Reset</button></div>
     </div>
 
-    <h2>Παίκτες</h2>
+    <h2>Αποστολή αγώνα</h2>
     <div id="playersForm"></div>
 
     <h2>Αναπληρωματικοί</h2>
@@ -65,6 +65,7 @@
     <h2>Εργαλεία</h2>
     <button id="openNotes">Σημειώσεις</button>
     <button id="openAttendanceV73" type="button">Παρουσιολόγιο</button>
+    <button id="openRosterV74" type="button">Ρόστερ / Αποστολή αγώνα</button>
     <button id="saveMatch">Τέλος αγώνα / Αποθήκευση</button>
     <button id="saveMatchV73" type="button">Αποθήκευση αγώνα</button>
     <button id="openHistory">Ιστορικό</button>
@@ -167,6 +168,9 @@
 
     <input id="quickPlayerIndexV72" type="hidden" />
 
+    <label for="assignFromSquadV74">Επιλογή από αποστολή</label>
+    <select id="assignFromSquadV74"><option value="">-- διάλεξε παίκτη --</option></select>
+
     <label for="quickPlayerNameV72">Όνομα</label>
     <input id="quickPlayerNameV72" type="text" />
 
@@ -255,6 +259,35 @@
     <div class="attendance-table-wrap-v73">
       <table id="attendanceTableV73"></table>
     </div>
+  </form>
+</dialog>
+
+
+<dialog id="rosterDialogV74">
+  <form method="dialog" class="modal roster-v74">
+    <div class="modal-head">
+      <h2>Ρόστερ / Αποστολή αγώνα</h2>
+      <button value="close" type="submit">Κλείσιμο</button>
+    </div>
+
+    <div class="roster-actions-v74">
+      <button id="addRosterPlayerV74" type="button">+ Νέος παίκτης</button>
+      <button id="syncRosterFromLineupV74" type="button">Παίκτες από την τρέχουσα λίστα</button>
+      <button id="applySquadToLineupV74" type="button">Πέρασμα στην αποστολή</button>
+      <button id="clearSquadV74" type="button">Καθαρισμός αποστολής</button>
+    </div>
+
+    <p class="roster-tip-v74">
+      Τσέκαρε τους παίκτες που θέλεις στην αποστολή. Οι πρώτοι 11 μπαίνουν στην 11άδα αριστερά και οι υπόλοιποι στους αναπληρωματικούς.
+      Στις θέσεις γράψε π.χ. GK, CB, LB, RB, CM, LW, RW, ST.
+    </p>
+
+    <div class="roster-table-wrap-v74">
+      <table id="rosterTableV74"></table>
+    </div>
+
+    <h3>Επιλεγμένη αποστολή</h3>
+    <div id="squadPreviewV74" class="squad-preview-v74"></div>
   </form>
 </dialog>
 
