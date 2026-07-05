@@ -2,8 +2,8 @@
 <html lang="el">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Football Lineup Coach v6</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Football Coach v7</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -41,9 +41,11 @@
 
     <h2>Εργαλεία</h2>
     <button id="openNotes">Σημειώσεις</button>
+    <button id="saveMatch">Τέλος αγώνα / Αποθήκευση</button>
+    <button id="openHistory">Ιστορικό</button>
     <div class="double"><button id="toggleDraw">Βέλη: Off</button><button id="clearDraw">Καθάρισμα</button></div>
     <div class="triple"><button id="resetAll">Reset</button><button id="exportPng">PNG</button><button id="exportPdf">PDF</button></div>
-    <p class="tip">Σύρε παίκτη για μετακίνηση. Διπλό κλικ πάνω στον παίκτη αλλάζει όνομα.</p>
+    <p class="tip">Πάτα παίκτη για επεξεργασία. Κράτα και σύρε για μετακίνηση.</p>
   </aside>
 
   <main class="stage">
@@ -68,10 +70,36 @@
   </main>
 </div>
 
-<dialog id="notesDialog">
-  <form method="dialog" class="modal">
-    <div class="modal-head"><h2>Σημειώσεις αγώνα</h2><button value="close">Κλείσιμο</button></div>
-    <textarea id="notes" placeholder="Οδηγίες, αλλαγές, στημένα, παρατηρήσεις..."></textarea>
+<dialog id="playerDialog">
+  <form method="dialog" class="modal player-modal">
+    <div class="modal-head"><h2>Παίκτης</h2><button value="close">Κλείσιμο</button></div>
+    <input id="editIndex" type="hidden">
+    <label>Όνομα</label><input id="editName">
+    <label>Αριθμός φανέλας</label><input id="editNumber">
+    <div class="grid2">
+      <div><label>Γκολ</label><input id="editGoals" type="number" min="0" value="0"></div>
+      <div><label>Ασίστ</label><input id="editAssists" type="number" min="0" value="0"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Κίτρινες</label><input id="editYellow" type="number" min="0" value="0"></div>
+      <div><label>Κόκκινες</label><input id="editRed" type="number" min="0" value="0"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Λεπτά</label><input id="editMinutes" type="number" min="0" value="0"></div>
+      <div><label>Βαθμολογία 1-10</label><input id="editRating" type="number" min="1" max="10" step="0.1"></div>
+    </div>
+    <div id="playerStats" class="stats-box"></div>
+    <button id="savePlayer" value="close">Αποθήκευση παίκτη</button>
+  </form>
+</dialog>
+
+<dialog id="notesDialog"><form method="dialog" class="modal"><div class="modal-head"><h2>Σημειώσεις</h2><button value="close">Κλείσιμο</button></div><textarea id="notes"></textarea></form></dialog>
+
+<dialog id="historyDialog">
+  <form method="dialog" class="modal history-modal">
+    <div class="modal-head"><h2>Ιστορικό</h2><button value="close">Κλείσιμο</button></div>
+    <h3>Στατιστικά παικτών</h3><div id="playerHistory"></div>
+    <h3>Αγώνες</h3><div id="matchHistory"></div>
   </form>
 </dialog>
 
