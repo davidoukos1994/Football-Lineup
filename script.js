@@ -464,3 +464,216 @@ load();render();
     init();
   }
 })();
+
+
+/* ===== v7.2 quick player popup + stable player stats ===== */
+(function () {
+  let dragStartedV72 = false;
+  let pointerMovedV72 = false;
+
+  function q(id) {
+    return document.getElementById(id);
+  }
+
+  function ensurePlayerFields(player, index) {
+    if (!player) return;
+    if (player.name === undefined) player.name = `Παίκτης ${index + 1}`;
+    if (player.number === undefined) player.number = String(index + 1);
+    if (player.goals === undefined) player.goals = 0;
+    if (player.yellow === undefined) player.yellow = 0;
+    if (player.red === undefined) player.red = 0;
+    if (player.minutes === undefined) player.minutes = 0;
+    if (player.rating === undefined) player.rating = "";
+  }
+
+  function getPlayerIndexFromElement(el) {
+    if (!el) return -1;
+
+    if (el.dataset && el.dataset.index !== undefined) {
+      const d = Number(el.dataset.index);
+      if (!Number.isNaN(d)) return d;
+    }
+
+    const playersEls = Array.from(document.querySelectorAll(".player"));
+    return playersEls.indexOf(el);
+  }
+
+  function updateSummaryV72(name) {
+    const box = q("quickPlayerSummaryV72");
+    if (!box) return;
+
+    let found = null;
+
+    try {
+      if (typeof playerHistory !== "undefined" && playerHistory) {
+        const key = String(name || "").trim().toLowerCase();
+        found = playerHistory[key] || Object.values(playerHistory).find((p) => String(p.name || "").trim().toLowerCase() === key);
+      }
+    } catch (err) {}
+
+    if (found) {
+      const avg = found.ratingCount ? (found.ratingSum / found.ratingCount).toFixed(1) : (found.avgRating || "-");
+      box.innerHTML = `<b>Ιστορικό παίκτη</b><br>Αγώνες: ${found.matches || found.games || 0} | Γκολ: ${found.goals || 0}<br>Κίτρινες: ${found.yellow || found.yellows || 0} | Κόκκινες: ${found.red || found.reds || 0}<br>Λεπτά: ${found.minutes || 0} | Μ.Ο.: ${avg}`;
+    } else {
+      box.textContent = "Δεν υπάρχει ακόμα ιστορικό για αυτόν τον παίκτη.";
+    }
+  }
+
+  function openQuickPlayerV72(index) {
+    if (index < 0 || typeof players === "undefined" || !players[index]) return;
+
+    ensurePlayerFields(players[index], index);
+    const player = players[index];
+
+    q("quickPlayerIndexV72").value = index;
+    q("quickPlayerNameV72").value = player.name || "";
+    q("quickPlayerNumberV72").value = player.number || "";
+    q("quickPlayerGoalsV72").value = player.goals || 0;
+    q("quickPlayerYellowV72").value = player.yellow || player.yellows || 0;
+    q("quickPlayerRedV72").value = player.red || player.reds || 0;
+    q("quickPlayerMinutesV72").value = player.minutes || 0;
+    q("quickPlayerRatingV72").value = player.rating || "";
+
+    updateSummaryV72(player.name);
+    q("quickPlayerDialogV72")?.showModal();
+
+    setTimeout(() => q("quickPlayerNameV72")?.focus(), 80);
+  }
+
+  function saveQuickPlayerV72() {
+    const index = Number(q("quickPlayerIndexV72")?.value);
+    if (Number.isNaN(index) || typeof players === "undefined" || !players[index]) return;
+
+    ensurePlayerFields(players[index], index);
+    const player = players[index];
+
+    player.name = q("quickPlayerNameV72")?.value.trim() || "";
+    player.number = q("quickPlayerNumberV72")?.value || "";
+    player.goals = Number(q("quickPlayerGoalsV72")?.value || 0);
+    player.yellow = Number(q("quickPlayerYellowV72")?.value || 0);
+    player.red = Number(q("quickPlayerRedV72")?.value || 0);
+    player.minutes = Number(q("quickPlayerMinutesV72")?.value || 0);
+    player.rating = q("quickPlayerRatingV72")?.value || "";
+
+    if (typeof render === "function") {
+      render();
+    } else if (typeof renderPitch === "function") {
+      renderPitch();
+      if (typeof save === "function") save();
+    }
+  }
+
+  function decoratePlayersV72() {
+    if (typeof players === "undefined") return;
+
+    document.querySelectorAll(".player").forEach((el, index) => {
+      const playerIndex = getPlayerIndexFromElement(el);
+      const i = playerIndex >= 0 ? playerIndex : index;
+      const player = players[i];
+      if (!player) return;
+
+      ensurePlayerFields(player, i);
+
+      el.dataset.index = i;
+      el.style.width = "";
+      el.style.minWidth = "";
+      el.style.maxWidth = "";
+
+      // Add / update goal badge
+      let badge = el.querySelector(".player-goal-badge-v72");
+      if (player.goals > 0) {
+        if (!badge) {
+          badge = document.createElement("span");
+          badge.className = "player-goal-badge-v72";
+          el.appendChild(badge);
+        }
+        badge.textContent = `⚽${player.goals}`;
+      } else if (badge) {
+        badge.remove();
+      }
+
+      // Add / update card mark
+      let card = el.querySelector(".player-card-v72");
+      if ((player.yellow || 0) > 0 || (player.red || 0) > 0) {
+        if (!card) {
+          card = document.createElement("span");
+          card.className = "player-card-v72";
+          el.appendChild(card);
+        }
+        card.classList.toggle("player-card-yellow-v72", (player.yellow || 0) > 0 && (player.red || 0) === 0);
+        card.classList.toggle("player-card-red-v72", (player.red || 0) > 0);
+      } else if (card) {
+        card.remove();
+      }
+    });
+  }
+
+  function attachPlayerClickHandlersV72() {
+    document.addEventListener("pointerdown", (event) => {
+      const player = event.target.closest && event.target.closest(".player");
+      if (!player) return;
+      dragStartedV72 = true;
+      pointerMovedV72 = false;
+    }, true);
+
+    document.addEventListener("pointermove", (event) => {
+      if (dragStartedV72) pointerMovedV72 = true;
+    }, true);
+
+    document.addEventListener("pointerup", () => {
+      setTimeout(() => {
+        dragStartedV72 = false;
+        pointerMovedV72 = false;
+      }, 120);
+    }, true);
+
+    document.addEventListener("click", (event) => {
+      const player = event.target.closest && event.target.closest(".player");
+      if (!player) return;
+
+      // If user dragged, do not open popup
+      if (pointerMovedV72) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const index = getPlayerIndexFromElement(player);
+      openQuickPlayerV72(index);
+    }, true);
+  }
+
+  function wrapRenderV72() {
+    const oldRender = window.render;
+    if (typeof oldRender === "function" && !window.__v72RenderWrapped) {
+      window.render = function () {
+        oldRender();
+        decoratePlayersV72();
+      };
+      window.__v72RenderWrapped = true;
+    }
+
+    const oldRenderPitch = window.renderPitch;
+    if (typeof oldRenderPitch === "function" && !window.__v72RenderPitchWrapped) {
+      window.renderPitch = function () {
+        oldRenderPitch();
+        decoratePlayersV72();
+      };
+      window.__v72RenderPitchWrapped = true;
+    }
+
+    decoratePlayersV72();
+  }
+
+  function init() {
+    q("quickPlayerNameV72")?.addEventListener("input", (event) => updateSummaryV72(event.target.value));
+    q("quickSavePlayerV72")?.addEventListener("click", saveQuickPlayerV72);
+    attachPlayerClickHandlersV72();
+    wrapRenderV72();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
