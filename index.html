@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Football Lineup Builder</title>
+  <title>Football Lineup Builder Pro</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -16,27 +16,85 @@
           <input id="teamName" type="text" value="Η Ομάδα μου" />
         </div>
       </div>
-      <label class="file-label">Ανέβασε σήμα ομάδας<input id="teamLogo" type="file" accept="image/*" /></label>
+
+      <label class="file-label">
+        Ανέβασε σήμα ομάδας
+        <input id="teamLogo" type="file" accept="image/*" />
+      </label>
+
       <label for="formation">Σύστημα</label>
       <select id="formation">
-        <option value="4-3-3">4-3-3</option><option value="4-4-2">4-4-2</option><option value="3-5-2">3-5-2</option><option value="4-2-3-1">4-2-3-1</option><option value="3-4-3">3-4-3</option><option value="5-3-2">5-3-2</option>
+        <option value="4-3-3">4-3-3</option>
+        <option value="4-4-2">4-4-2</option>
+        <option value="3-5-2">3-5-2</option>
+        <option value="4-2-3-1">4-2-3-1</option>
+        <option value="3-4-3">3-4-3</option>
+        <option value="5-3-2">5-3-2</option>
       </select>
-      <h2>Παίκτες 11άδας</h2><div id="playersForm" class="players-form"></div>
-      <h2>Αναπληρωματικοί</h2><div id="subsList" class="subs-list"></div><button id="addSub" type="button">+ Προσθήκη αναπληρωματικού</button>
-      <div class="actions"><button id="reset" type="button">Καθαρισμός</button><button id="exportImage" type="button">Εξαγωγή εικόνας</button></div>
+
+      <div class="toggle-row">
+        <label for="kitColor">Χρώμα παικτών</label>
+        <input id="kitColor" type="color" value="#0f172a" />
+      </div>
+
+      <h2>Παίκτες 11άδας</h2>
+      <div id="playersForm" class="players-form"></div>
+
+      <h2>Αναπληρωματικοί</h2>
+      <div id="subsList" class="subs-list"></div>
+      <button id="addSub" type="button">+ Προσθήκη αναπληρωματικού</button>
+
+      <h2>Σχεδίαση τακτικής</h2>
+      <div class="draw-actions">
+        <button id="toggleDraw" type="button">Σχεδίαση: Κλειστή</button>
+        <button id="clearDraw" type="button">Καθάρισμα γραμμών</button>
+      </div>
+
+      <div class="actions">
+        <button id="reset" type="button">Καθαρισμός</button>
+        <button id="exportImage" type="button">PNG</button>
+        <button id="exportPdf" type="button">PDF</button>
+      </div>
+
+      <p class="hint">Κράτα πατημένο παίκτη για να τον μετακινήσεις. Διπλό κλικ για γρήγορη αλλαγή ονόματος.</p>
     </aside>
+
     <main class="pitch-wrap" id="captureArea">
-      <header class="team-header"><img id="headerLogo" class="header-logo" alt="" /><h1 id="teamTitle">Η Ομάδα μου</h1></header>
+      <header class="team-header">
+        <img id="headerLogo" class="header-logo" alt="" />
+        <h1 id="teamTitle">Η Ομάδα μου</h1>
+      </header>
+
       <div class="board">
-        <section class="notes-card"><h2>Σημειώσεις</h2><textarea id="notes" placeholder="Γράψε εδώ οδηγίες, τακτική, στημένες φάσεις, αλλαγές κτλ."></textarea></section>
+        <section class="notes-card">
+          <h2>Σημειώσεις</h2>
+          <textarea id="notes" placeholder="Γράψε εδώ οδηγίες, τακτική, στημένες φάσεις, αλλαγές κτλ."></textarea>
+        </section>
+
         <section id="pitch" class="pitch" aria-label="Γήπεδο ποδοσφαίρου">
-          <div class="halfway"></div><div class="center-circle"></div><div class="center-spot"></div><div class="box box-top"></div><div class="box box-bottom"></div><div class="six six-top"></div><div class="six six-bottom"></div><div class="penalty penalty-top"></div><div class="penalty penalty-bottom"></div><div id="playersOnPitch"></div>
+          <canvas id="drawCanvas"></canvas>
+          <div class="halfway"></div>
+          <div class="center-circle"></div>
+          <div class="center-spot"></div>
+          <div class="box box-top"></div>
+          <div class="box box-bottom"></div>
+          <div class="six six-top"></div>
+          <div class="six six-bottom"></div>
+          <div class="penalty penalty-top"></div>
+          <div class="penalty penalty-bottom"></div>
+          <div id="playersOnPitch"></div>
         </section>
       </div>
-      <section class="subs-card"><h2>Αναπληρωματικοί</h2><div id="subsPreview"></div></section>
+
+      <section class="subs-card">
+        <h2>Αναπληρωματικοί</h2>
+        <div id="subsPreview"></div>
+      </section>
     </main>
   </div>
+
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
