@@ -1634,3 +1634,219 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v7.5.1 robust save/load + backup/restore ===== */
+(function () {
+  const ROBUST_KEY = "footballCoachV751RobustState";
+  let saveTimer = null;
+
+  function q(id) { return document.getElementById(id); }
+
+  function safeParse(value, fallback) {
+    try { return JSON.parse(value); } catch (err) { return fallback; }
+  }
+
+  function allLocalStorage() {
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      out[key] = localStorage.getItem(key);
+    }
+    return out;
+  }
+
+  function readFormValue(id) {
+    const el = q(id);
+    return el ? el.value : "";
+  }
+
+  function setFormValue(id, value) {
+    const el = q(id);
+    if (el && value !== undefined && value !== null) el.value = value;
+  }
+
+  function collectRobustState() {
+    return {
+      version: "7.5.1",
+      savedAt: new Date().toISOString(),
+      currentFormation: typeof currentFormation !== "undefined" ? currentFormation : "",
+      players: typeof players !== "undefined" ? players : [],
+      subs: typeof subs !== "undefined" ? subs : [],
+      lines: typeof lines !== "undefined" ? lines : [],
+      timerSeconds: typeof timerSeconds !== "undefined" ? timerSeconds : 0,
+      teamName: readFormValue("teamName"),
+      homeTeam: readFormValue("homeTeam"),
+      awayTeam: readFormValue("awayTeam"),
+      homeScore: readFormValue("homeScore"),
+      awayScore: readFormValue("awayScore"),
+      notes: readFormValue("notes"),
+      matchSeasonV71: readFormValue("matchSeasonV71"),
+      matchTypeV71: readFormValue("matchTypeV71"),
+      matchDayV71: readFormValue("matchDayV71"),
+      matchDateV71: readFormValue("matchDateV71"),
+      manualMatchTimeV75: readFormValue("manualMatchTimeV75"),
+      logo: q("headerLogo")?.src || q("teamLogoPreview")?.src || "",
+      localStorage: allLocalStorage()
+    };
+  }
+
+  function showSaved() {
+    let box = q("saveStatusV751");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "saveStatusV751";
+      box.className = "save-status-v751";
+      box.textContent = "Αποθηκεύτηκε";
+      document.body.appendChild(box);
+    }
+    box.classList.add("show");
+    setTimeout(function(){ box.classList.remove("show"); }, 900);
+  }
+
+  function robustSave(show) {
+    try {
+      localStorage.setItem(ROBUST_KEY, JSON.stringify(collectRobustState()));
+      try { if (typeof save === "function") save(); } catch (err) {}
+      if (show) showSaved();
+      return true;
+    } catch (err) {
+      alert("Δεν μπόρεσα να αποθηκεύσω. Αν είσαι σε Ιδιωτική περιήγηση, βγες από αυτή. Αν έχεις μεγάλο σήμα ομάδας, βάλε μικρότερη εικόνα.");
+      return false;
+    }
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function(){ robustSave(false); }, 250);
+  }
+
+  function applyRobustState(state) {
+    if (!state || typeof state !== "object") return;
+
+    try {
+      if (typeof currentFormation !== "undefined" && state.currentFormation) currentFormation = state.currentFormation;
+      if (typeof players !== "undefined" && Array.isArray(state.players) && state.players.length) players = state.players;
+      if (typeof subs !== "undefined" && Array.isArray(state.subs)) subs = state.subs;
+      if (typeof lines !== "undefined" && Array.isArray(state.lines)) lines = state.lines;
+      if (typeof timerSeconds !== "undefined") timerSeconds = Number(state.timerSeconds || 0);
+    } catch (err) {}
+
+    setFormValue("teamName", state.teamName);
+    setFormValue("homeTeam", state.homeTeam);
+    setFormValue("awayTeam", state.awayTeam);
+    setFormValue("homeScore", state.homeScore);
+    setFormValue("awayScore", state.awayScore);
+    setFormValue("notes", state.notes);
+    setFormValue("matchSeasonV71", state.matchSeasonV71);
+    setFormValue("matchTypeV71", state.matchTypeV71);
+    setFormValue("matchDayV71", state.matchDayV71);
+    setFormValue("matchDateV71", state.matchDateV71);
+    setFormValue("manualMatchTimeV75", state.manualMatchTimeV75);
+
+    if (state.logo && state.logo.startsWith("data:")) {
+      if (q("headerLogo")) {
+        q("headerLogo").src = state.logo;
+        q("headerLogo").style.display = "block";
+      }
+      if (q("teamLogoPreview")) q("teamLogoPreview").src = state.logo;
+    }
+
+    try {
+      if (q("formation") && state.currentFormation) q("formation").value = state.currentFormation;
+      if (typeof render === "function") render();
+      else {
+        if (typeof renderPitch === "function") renderPitch();
+        if (typeof renderPlayerInputs === "function") renderPlayerInputs();
+        if (typeof renderSubs === "function") renderSubs();
+        if (typeof renderTimer === "function") renderTimer();
+      }
+    } catch (err) {}
+  }
+
+  function robustLoad() {
+    const state = safeParse(localStorage.getItem(ROBUST_KEY), null);
+    if (state) applyRobustState(state);
+  }
+
+  function backupAll() {
+    robustSave(false);
+    const payload = collectRobustState();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "football-coach-backup-v7-5-1.json";
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  function restoreAll(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function () {
+      try {
+        const payload = JSON.parse(reader.result);
+        if (payload.localStorage) {
+          Object.keys(payload.localStorage).forEach(function(key) {
+            localStorage.setItem(key, payload.localStorage[key]);
+          });
+        }
+        localStorage.setItem(ROBUST_KEY, JSON.stringify(payload));
+        alert("Το restore ολοκληρώθηκε. Η σελίδα θα ανανεωθεί.");
+        location.reload();
+      } catch (err) {
+        alert("Δεν είναι σωστό αρχείο backup.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function wireLogoSave() {
+    const input = q("teamLogo");
+    if (!input || input.dataset.v751Ready === "1") return;
+    input.dataset.v751Ready = "1";
+    input.addEventListener("change", function() {
+      setTimeout(function(){ robustSave(true); }, 700);
+      setTimeout(function(){ robustSave(false); }, 1600);
+    });
+  }
+
+  function wireAutoSave() {
+    document.addEventListener("input", scheduleSave, true);
+    document.addEventListener("change", scheduleSave, true);
+    document.addEventListener("click", function(){ setTimeout(scheduleSave, 300); }, true);
+    window.addEventListener("beforeunload", function(){ robustSave(false); });
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden") robustSave(false);
+    });
+    setInterval(function(){ robustSave(false); }, 5000);
+    wireLogoSave();
+    setInterval(wireLogoSave, 1500);
+  }
+
+  function wrapRender() {
+    const oldRender = window.render;
+    if (typeof oldRender === "function" && !window.__v751RenderWrapped) {
+      window.render = function () {
+        oldRender();
+        scheduleSave();
+      };
+      window.__v751RenderWrapped = true;
+    }
+  }
+
+  function init() {
+    robustLoad();
+    wireAutoSave();
+    wrapRender();
+    q("backupAllV751")?.addEventListener("click", backupAll);
+    q("restoreAllV751")?.addEventListener("change", restoreAll);
+    setTimeout(function(){ robustSave(false); }, 1000);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+
+  window.footballCoachSaveNow = function(){ return robustSave(true); };
+})();
