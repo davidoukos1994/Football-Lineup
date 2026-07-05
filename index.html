@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v8.1.1</title>
+<title>Football Coach v7</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,32 +14,11 @@
       <div><label>Όνομα ομάδας</label><input id="teamName" value="Η Ομάδα μου"></div>
     </div>
     <label class="upload-box">Σήμα ομάδας<input id="teamLogo" type="file" accept="image/*"></label>
-    <label>Αγωνιστική περίοδος</label>
-    <input id="season" value="Αθλόπολις 2026-2027">
-
     <label>Σύστημα</label>
     <select id="formation">
       <option>4-3-3</option><option>4-4-2</option><option>4-2-3-1</option>
       <option>3-5-2</option><option>3-4-3</option><option>5-3-2</option>
     </select>
-
-    <h2>Στοιχεία αγώνα</h2>
-    <div class="match-editor">
-      <div>
-        <label>Τύπος αγώνα</label>
-        <select id="matchType">
-          <option value="league">Πρωτάθλημα</option>
-          <option value="cup">Κύπελλο</option>
-          <option value="friendly">Φιλικό</option>
-        </select>
-      </div>
-      <div>
-        <label>Αγωνιστική</label>
-        <input id="matchDay" placeholder="π.χ. 1η αγωνιστική">
-      </div>
-    </div>
-    <label>Ημερομηνία αγώνα</label>
-    <input id="matchDate" type="date">
 
     <h2>Σκορ</h2>
     <div class="score-editor">
@@ -72,9 +51,7 @@
   <main class="stage">
     <div id="captureArea" class="capture-area">
       <header class="match-header">
-        <div id="seasonTitle" class="season-title">Αθλόπολις 2026-2027</div>
         <div class="team-title"><img id="headerLogo" class="header-logo" alt=""><h1 id="teamTitle">Η Ομάδα μου</h1></div>
-        <div id="matchMetaTitle" class="match-meta">Πρωτάθλημα • Αγωνιστική • Ημερομηνία</div>
         <div class="scoreboard"><strong id="scoreHomeName">Η Ομάδα μου</strong><span id="scoreHome">0</span><b>-</b><span id="scoreAway">0</span><strong id="scoreAwayName">Αντίπαλος</strong></div>
         <div id="timerLive" class="timer-live">00:00</div>
       </header>
