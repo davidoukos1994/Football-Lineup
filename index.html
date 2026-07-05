@@ -1,128 +1,82 @@
 <!doctype html>
 <html lang="el">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Football Lineup Builder Match</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Football Lineup Coach v6</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
-    <aside class="panel">
-      <div class="brand">
-        <img id="teamLogoPreview" class="team-logo" alt="Σήμα ομάδας" />
-        <div>
-          <label for="teamName">Όνομα ομάδας</label>
-          <input id="teamName" type="text" value="Η Ομάδα μου" />
-        </div>
-      </div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="top-card">
+      <img id="teamLogoPreview" class="team-logo" alt="Σήμα">
+      <div><label>Όνομα ομάδας</label><input id="teamName" value="Η Ομάδα μου"></div>
+    </div>
+    <label class="upload-box">Σήμα ομάδας<input id="teamLogo" type="file" accept="image/*"></label>
+    <label>Σύστημα</label>
+    <select id="formation">
+      <option>4-3-3</option><option>4-4-2</option><option>4-2-3-1</option>
+      <option>3-5-2</option><option>3-4-3</option><option>5-3-2</option>
+    </select>
 
-      <label class="file-label">
-        Ανέβασε σήμα ομάδας
-        <input id="teamLogo" type="file" accept="image/*" />
-      </label>
+    <h2>Σκορ</h2>
+    <div class="score-editor">
+      <input id="homeTeam" value="Η Ομάδα μου"><input id="homeScore" type="number" min="0" value="0">
+      <span>-</span><input id="awayScore" type="number" min="0" value="0"><input id="awayTeam" value="Αντίπαλος">
+    </div>
 
-      <label for="formation">Σύστημα</label>
-      <select id="formation">
-        <option value="4-3-3">4-3-3</option>
-        <option value="4-4-2">4-4-2</option>
-        <option value="3-5-2">3-5-2</option>
-        <option value="4-2-3-1">4-2-3-1</option>
-        <option value="3-4-3">3-4-3</option>
-        <option value="5-3-2">5-3-2</option>
-      </select>
+    <h2>Χρονόμετρο</h2>
+    <div class="timer-box">
+      <div id="timerDisplay">00:00</div>
+      <div class="triple"><button id="timerStart">Start</button><button id="timerStop">Stop</button><button id="timerReset">Reset</button></div>
+    </div>
 
-      <h2>Σκορ</h2>
-      <div class="score-editor">
-        <input id="homeTeam" type="text" value="Η Ομάδα μου" placeholder="Ομάδα" />
-        <input id="homeScore" type="number" value="0" min="0" />
-        <span>-</span>
-        <input id="awayScore" type="number" value="0" min="0" />
-        <input id="awayTeam" type="text" value="Αντίπαλος" placeholder="Αντίπαλος" />
-      </div>
+    <h2>Παίκτες</h2>
+    <div id="playersForm"></div>
 
-      <h2>Χρονόμετρο</h2>
-      <div class="timer-panel">
-        <div id="timerDisplay">00:00</div>
-        <div class="timer-buttons">
-          <button id="timerStart" type="button">Start</button>
-          <button id="timerStop" type="button">Stop</button>
-          <button id="timerReset" type="button">Reset</button>
-        </div>
-      </div>
+    <h2>Αναπληρωματικοί</h2>
+    <div id="subsList"></div>
+    <button id="addSub">+ Αναπληρωματικός</button>
 
-      <h2>Παίκτες 11άδας</h2>
-      <div id="playersForm" class="players-form"></div>
+    <h2>Εργαλεία</h2>
+    <button id="openNotes">Σημειώσεις</button>
+    <div class="double"><button id="toggleDraw">Βέλη: Off</button><button id="clearDraw">Καθάρισμα</button></div>
+    <div class="triple"><button id="resetAll">Reset</button><button id="exportPng">PNG</button><button id="exportPdf">PDF</button></div>
+    <p class="tip">Σύρε παίκτη για μετακίνηση. Διπλό κλικ πάνω στον παίκτη αλλάζει όνομα.</p>
+  </aside>
 
-      <h2>Αναπληρωματικοί</h2>
-      <div id="subsList" class="subs-list"></div>
-      <button id="addSub" type="button">+ Προσθήκη αναπληρωματικού</button>
-
-      <h2>Εργαλεία</h2>
-      <button id="openNotes" type="button">Άνοιγμα σημειώσεων</button>
-      <div class="draw-actions">
-        <button id="toggleDraw" type="button">Σχεδίαση: Κλειστή</button>
-        <button id="clearDraw" type="button">Καθάρισμα γραμμών</button>
-      </div>
-
-      <div class="actions">
-        <button id="reset" type="button">Καθαρισμός</button>
-        <button id="exportImage" type="button">PNG</button>
-        <button id="exportPdf" type="button">PDF</button>
-      </div>
-
-      <p class="hint">Κράτα πατημένο παίκτη για να τον μετακινήσεις. Διπλό κλικ για γρήγορη αλλαγή ονόματος.</p>
-    </aside>
-
-    <main class="pitch-wrap" id="captureArea">
+  <main class="stage">
+    <div id="captureArea" class="capture-area">
       <header class="match-header">
-        <div class="team-title-wrap">
-          <img id="headerLogo" class="header-logo" alt="" />
-          <h1 id="teamTitle">Η Ομάδα μου</h1>
-        </div>
-        <div class="scoreboard">
-          <strong id="scoreHomeName">Η Ομάδα μου</strong>
-          <span id="scoreHome">0</span>
-          <span class="dash">-</span>
-          <span id="scoreAway">0</span>
-          <strong id="scoreAwayName">Αντίπαλος</strong>
-        </div>
-        <div class="timer-live" id="timerLive">00:00</div>
+        <div class="team-title"><img id="headerLogo" class="header-logo" alt=""><h1 id="teamTitle">Η Ομάδα μου</h1></div>
+        <div class="scoreboard"><strong id="scoreHomeName">Η Ομάδα μου</strong><span id="scoreHome">0</span><b>-</b><span id="scoreAway">0</span><strong id="scoreAwayName">Αντίπαλος</strong></div>
+        <div id="timerLive" class="timer-live">00:00</div>
       </header>
 
-      <section id="pitch" class="pitch" aria-label="Γήπεδο ποδοσφαίρου">
+      <section id="pitch" class="pitch">
         <canvas id="drawCanvas"></canvas>
-        <div class="halfway"></div>
-        <div class="center-circle"></div>
-        <div class="center-spot"></div>
-        <div class="box box-top"></div>
-        <div class="box box-bottom"></div>
-        <div class="six six-top"></div>
-        <div class="six six-bottom"></div>
-        <div class="penalty penalty-top"></div>
-        <div class="penalty penalty-bottom"></div>
+        <div class="halfway"></div><div class="center-circle"></div><div class="center-dot"></div>
+        <div class="box box-top"></div><div class="box box-bottom"></div>
+        <div class="six six-top"></div><div class="six six-bottom"></div>
+        <div class="pen pen-top"></div><div class="pen pen-bottom"></div>
         <div id="playersOnPitch"></div>
       </section>
 
-      <section class="subs-card">
-        <h2>Αναπληρωματικοί</h2>
-        <div id="subsPreview"></div>
-      </section>
-    </main>
-  </div>
+      <section class="subs-card"><h2>Πάγκος</h2><div id="subsPreview"></div></section>
+    </div>
+  </main>
+</div>
 
-  <dialog id="notesDialog">
-    <form method="dialog" class="notes-modal">
-      <div class="modal-head">
-        <h2>Σημειώσεις</h2>
-        <button value="close" type="submit">Κλείσιμο</button>
-      </div>
-      <textarea id="notes" placeholder="Γράψε εδώ οδηγίες, τακτική, στημένες φάσεις, αλλαγές κτλ."></textarea>
-    </form>
-  </dialog>
+<dialog id="notesDialog">
+  <form method="dialog" class="modal">
+    <div class="modal-head"><h2>Σημειώσεις αγώνα</h2><button value="close">Κλείσιμο</button></div>
+    <textarea id="notes" placeholder="Οδηγίες, αλλαγές, στημένα, παρατηρήσεις..."></textarea>
+  </form>
+</dialog>
 
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
