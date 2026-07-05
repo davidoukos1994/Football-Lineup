@@ -1453,3 +1453,184 @@ load();render();
     init();
   }
 })();
+
+
+/* ===== v7.5 rounds + manual match time ===== */
+(function () {
+  const ROUNDS_KEY_V75 = "footballCoachV75Rounds";
+  const MANUAL_TIME_KEY_V75 = "footballCoachV75ManualTime";
+
+  function q(id) { return document.getElementById(id); }
+  function safeParse(value, fallback) { try { return JSON.parse(value); } catch (err) { return fallback; } }
+  function loadRoundsV75() { return safeParse(localStorage.getItem(ROUNDS_KEY_V75), []) || []; }
+  function saveRoundsV75(rounds) { localStorage.setItem(ROUNDS_KEY_V75, JSON.stringify(rounds)); }
+  function escapeHtmlV75(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  }
+
+  function saveManualTimeV75() {
+    localStorage.setItem(MANUAL_TIME_KEY_V75, q("manualMatchTimeV75")?.value || "");
+  }
+
+  function loadManualTimeV75() {
+    const value = localStorage.getItem(MANUAL_TIME_KEY_V75) || "";
+    if (q("manualMatchTimeV75")) q("manualMatchTimeV75").value = value;
+  }
+
+  function parseManualSecondsV75(value) {
+    const text = String(value || "").trim();
+    if (!text) return null;
+
+    if (/^\d+$/.test(text)) return Number(text) * 60;
+
+    const parts = text.split(":").map(Number);
+    if (parts.length === 2 && parts.every((n) => Number.isFinite(n))) {
+      return parts[0] * 60 + parts[1];
+    }
+
+    return null;
+  }
+
+  function formatTimeV75(seconds) {
+    const s = Math.max(0, Number(seconds || 0));
+    const m = Math.floor(s / 60);
+    const rest = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+  }
+
+  function getManualTimeSecondsV75() {
+    return parseManualSecondsV75(q("manualMatchTimeV75")?.value || "");
+  }
+
+  function applyManualTimeBeforeSaveV75() {
+    const manual = getManualTimeSecondsV75();
+    if (manual === null) return;
+
+    try {
+      if (typeof timerSeconds !== "undefined") timerSeconds = manual;
+      if (typeof renderTimer === "function") renderTimer();
+      if (typeof save === "function") save();
+    } catch (err) {}
+  }
+
+  function renderRoundsV75() {
+    const box = q("roundsListV75");
+    if (!box) return;
+
+    const rounds = loadRoundsV75();
+    if (!rounds.length) {
+      box.innerHTML = '<div class="round-card-v75">Δεν έχεις προσθέσει ακόμα αγωνιστικές.</div>';
+      return;
+    }
+
+    box.innerHTML = rounds.map((round, index) => `
+      <div class="round-card-v75">
+        <b>${escapeHtmlV75(round.name || "Αγωνιστική")}</b>
+        ${round.date ? "Ημερομηνία: " + escapeHtmlV75(round.date) + "<br>" : ""}
+        ${round.opponent ? "Αντίπαλος: " + escapeHtmlV75(round.opponent) : ""}
+        <div class="round-card-actions-v75">
+          <button type="button" data-action="select" data-index="${index}">Επιλογή</button>
+          <button type="button" data-action="delete" data-index="${index}">Διαγραφή</button>
+        </div>
+      </div>
+    `).join("");
+
+    box.querySelectorAll("button[data-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const index = Number(btn.dataset.index);
+        if (btn.dataset.action === "select") selectRoundV75(index);
+        if (btn.dataset.action === "delete") deleteRoundV75(index);
+      });
+    });
+  }
+
+  function addRoundV75() {
+    const name = q("roundNameV75")?.value.trim() || "";
+    const date = q("roundDateV75")?.value || "";
+    const opponent = q("roundOpponentV75")?.value.trim() || "";
+
+    if (!name && !date && !opponent) {
+      alert("Γράψε τουλάχιστον αγωνιστική, ημερομηνία ή αντίπαλο.");
+      return;
+    }
+
+    const rounds = loadRoundsV75();
+    rounds.push({ id: Date.now(), name, date, opponent });
+    saveRoundsV75(rounds);
+
+    if (q("roundNameV75")) q("roundNameV75").value = "";
+    if (q("roundDateV75")) q("roundDateV75").value = "";
+    if (q("roundOpponentV75")) q("roundOpponentV75").value = "";
+
+    renderRoundsV75();
+  }
+
+  function selectRoundV75(index) {
+    const round = loadRoundsV75()[index];
+    if (!round) return;
+
+    const day = q("matchDayV71") || q("matchDaySafe") || q("matchDay");
+    const date = q("matchDateV71") || q("matchDateSafe") || q("matchDate");
+    const opponent = q("awayTeam");
+
+    if (day && round.name) day.value = round.name;
+    if (date && round.date) date.value = round.date;
+    if (opponent && round.opponent) opponent.value = round.opponent;
+
+    ["input", "change"].forEach((eventName) => {
+      day?.dispatchEvent(new Event(eventName, { bubbles: true }));
+      date?.dispatchEvent(new Event(eventName, { bubbles: true }));
+      opponent?.dispatchEvent(new Event(eventName, { bubbles: true }));
+    });
+
+    if (typeof render === "function") {
+      try { render(); } catch (err) {}
+    }
+
+    alert("Η αγωνιστική επιλέχθηκε.");
+  }
+
+  function deleteRoundV75(index) {
+    const rounds = loadRoundsV75();
+    const round = rounds[index];
+    if (!round) return;
+    if (!confirm(`Να διαγραφεί η αγωνιστική "${round.name || round.opponent || ""}";`)) return;
+    rounds.splice(index, 1);
+    saveRoundsV75(rounds);
+    renderRoundsV75();
+  }
+
+  function openRoundsV75() {
+    renderRoundsV75();
+    q("roundsDialogV75")?.showModal();
+  }
+
+  function wrapSaveMatchV75() {
+    const saveButton = q("saveMatchV73");
+    if (saveButton && saveButton.dataset.v75Wrapped !== "1") {
+      saveButton.dataset.v75Wrapped = "1";
+      saveButton.addEventListener("click", applyManualTimeBeforeSaveV75, true);
+    }
+  }
+
+  function init() {
+    loadManualTimeV75();
+
+    q("manualMatchTimeV75")?.addEventListener("input", saveManualTimeV75);
+    q("manualMatchTimeV75")?.addEventListener("change", saveManualTimeV75);
+
+    q("openRoundsV75")?.addEventListener("click", openRoundsV75);
+    q("addRoundV75")?.addEventListener("click", addRoundV75);
+
+    wrapSaveMatchV75();
+
+    // Also expose helper for future code
+    window.getManualMatchTimeV75 = function () {
+      const manual = getManualTimeSecondsV75();
+      return manual === null ? null : { seconds: manual, text: formatTimeV75(manual) };
+    };
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

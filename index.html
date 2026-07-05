@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v7.4.1.2.2</title>
+<title>Football Coach v7.5.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -68,6 +68,7 @@
     <button id="openRosterV74" type="button">Ρόστερ / Αποστολή αγώνα</button>
     <button id="saveMatch">Τέλος αγώνα / Αποθήκευση</button>
     <button id="saveMatchV73" type="button">Αποθήκευση αγώνα</button>
+    <button id="openRoundsV75" type="button">Αγωνιστικές</button>
     <button id="openHistory">Ιστορικό</button>
     <button id="openHistoryManagerV712" type="button">Διαχείριση ιστορικού</button>
     <button id="openPlayerStatsV73" type="button">Στατιστικά παικτών</button>
@@ -291,6 +292,26 @@
 
     <h3>Επιλεγμένη αποστολή</h3>
     <div id="squadPreviewV74" class="squad-preview-v74"></div>
+  </form>
+</dialog>
+
+
+<dialog id="roundsDialogV75">
+  <form method="dialog" class="modal rounds-v75">
+    <div class="modal-head">
+      <h2>Αγωνιστικές</h2>
+      <button value="close" type="submit">Κλείσιμο</button>
+    </div>
+
+    <div class="rounds-add-v75">
+      <input id="roundNameV75" type="text" placeholder="π.χ. 1η αγωνιστική" />
+      <input id="roundDateV75" type="date" />
+      <input id="roundOpponentV75" type="text" placeholder="Αντίπαλος" />
+      <button id="addRoundV75" type="button">+ Προσθήκη</button>
+    </div>
+
+    <p class="rounds-tip-v75">Πάτησε «Επιλογή» για να περάσει η αγωνιστική στα στοιχεία αγώνα.</p>
+    <div id="roundsListV75" class="rounds-list-v75"></div>
   </form>
 </dialog>
 

@@ -444,3 +444,68 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v7.5 rounds + manual match time */
+.manual-time-tip-v75,
+.rounds-tip-v75 {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.35;
+  margin-top: 6px;
+}
+
+.rounds-v75 {
+  padding: 18px;
+  background: white;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.rounds-add-v75 {
+  display: grid;
+  grid-template-columns: 1fr 150px 1fr 120px;
+  gap: 10px;
+  margin: 14px 0;
+  align-items: end;
+}
+
+.rounds-list-v75 {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.round-card-v75 {
+  background: #f1f5f9;
+  border-radius: 14px;
+  padding: 12px;
+  line-height: 1.45;
+}
+
+.round-card-v75 b {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.round-card-actions-v75 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.round-card-actions-v75 button {
+  width: auto;
+  padding: 8px 12px;
+}
+
+.round-card-actions-v75 button:last-child {
+  background: #dc2626;
+}
+
+@media (max-width: 820px) {
+  .rounds-add-v75 {
+    grid-template-columns: 1fr;
+  }
+}
