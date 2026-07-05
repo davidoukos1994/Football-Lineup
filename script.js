@@ -48,3 +48,118 @@ async function capture(){drawAll();return await html2canvas($("captureArea"),{ba
 $("exportPng").onclick=async()=>{const c=await capture(),a=document.createElement("a");a.download="football-lineup.png";a.href=c.toDataURL("image/png");a.click()}
 $("exportPdf").onclick=async()=>{const c=await capture(),img=c.toDataURL("image/png"),{jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:"a4"});pdf.addImage(img,"PNG",10,8,190,280);pdf.save("football-lineup.pdf")}
 load();render();
+
+/* ===== v7.1 additions: match details + backup/restore ===== */
+(function () {
+  const EXTRA_KEY = "footballCoachV71Extras";
+
+  function q(id) {
+    return document.getElementById(id);
+  }
+
+  function typeLabel(value) {
+    if (value === "friendly") return "Φιλικό";
+    if (value === "cup") return "Κύπελλο";
+    return "Πρωτάθλημα";
+  }
+
+  function getExtras() {
+    return {
+      season: q("matchSeasonV71")?.value || "",
+      type: q("matchTypeV71")?.value || "league",
+      day: q("matchDayV71")?.value || "",
+      date: q("matchDateV71")?.value || ""
+    };
+  }
+
+  function updateMatchInfo() {
+    const box = q("matchInfoV71");
+    if (!box) return;
+    const x = getExtras();
+    box.textContent = [x.season, typeLabel(x.type), x.day, x.date].filter(Boolean).join(" • ");
+  }
+
+  function saveExtras() {
+    localStorage.setItem(EXTRA_KEY, JSON.stringify(getExtras()));
+    updateMatchInfo();
+  }
+
+  function loadExtras() {
+    try {
+      const x = JSON.parse(localStorage.getItem(EXTRA_KEY) || "{}");
+      if (q("matchSeasonV71") && x.season) q("matchSeasonV71").value = x.season;
+      if (q("matchTypeV71") && x.type) q("matchTypeV71").value = x.type;
+      if (q("matchDayV71") && x.day) q("matchDayV71").value = x.day;
+      if (q("matchDateV71") && x.date) q("matchDateV71").value = x.date;
+    } catch (e) {}
+    updateMatchInfo();
+  }
+
+  function collectAllStorage() {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      data[key] = localStorage.getItem(key);
+    }
+    return data;
+  }
+
+  function backup() {
+    saveExtras();
+    const payload = {
+      app: "Football Coach",
+      version: "7.1",
+      createdAt: new Date().toISOString(),
+      localStorage: collectAllStorage()
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "football-coach-backup-v7-1.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function restore(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function () {
+      try {
+        const payload = JSON.parse(reader.result);
+        if (!payload.localStorage) throw new Error("wrong backup");
+
+        Object.keys(payload.localStorage).forEach((key) => {
+          localStorage.setItem(key, payload.localStorage[key]);
+        });
+
+        alert("Το restore ολοκληρώθηκε. Η σελίδα θα ανανεωθεί.");
+        location.reload();
+      } catch (err) {
+        alert("Δεν είναι σωστό αρχείο backup.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function init() {
+    loadExtras();
+
+    ["matchSeasonV71", "matchTypeV71", "matchDayV71", "matchDateV71"].forEach((id) => {
+      const el = q(id);
+      if (!el) return;
+      el.addEventListener("input", saveExtras);
+      el.addEventListener("change", saveExtras);
+    });
+
+    q("backupV71")?.addEventListener("click", backup);
+    q("restoreV71")?.addEventListener("change", restore);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();

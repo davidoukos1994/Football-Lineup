@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v7</title>
+<title>Football Coach v7.1</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,7 +20,30 @@
       <option>3-5-2</option><option>3-4-3</option><option>5-3-2</option>
     </select>
 
-    <h2>Σκορ</h2>
+    
+      <h2>Στοιχεία αγώνα</h2>
+      <label for="matchSeasonV71">Αγωνιστική περίοδος</label>
+      <input id="matchSeasonV71" type="text" value="Αθλόπολις 2026-2027" />
+
+      <div class="match-v71-grid">
+        <div>
+          <label for="matchTypeV71">Τύπος</label>
+          <select id="matchTypeV71">
+            <option value="league">Πρωτάθλημα</option>
+            <option value="cup">Κύπελλο</option>
+            <option value="friendly">Φιλικό</option>
+          </select>
+        </div>
+        <div>
+          <label for="matchDayV71">Αγωνιστική</label>
+          <input id="matchDayV71" type="text" placeholder="π.χ. 1η αγωνιστική" />
+        </div>
+      </div>
+
+      <label for="matchDateV71">Ημερομηνία</label>
+      <input id="matchDateV71" type="date" />
+
+      <h2>Σκορ</h2>
     <div class="score-editor">
       <input id="homeTeam" value="Η Ομάδα μου"><input id="homeScore" type="number" min="0" value="0">
       <span>-</span><input id="awayScore" type="number" min="0" value="0"><input id="awayTeam" value="Αντίπαλος">
@@ -52,6 +75,7 @@
     <div id="captureArea" class="capture-area">
       <header class="match-header">
         <div class="team-title"><img id="headerLogo" class="header-logo" alt=""><h1 id="teamTitle">Η Ομάδα μου</h1></div>
+        <div id="matchInfoV71" class="match-info-v71"></div>
         <div class="scoreboard"><strong id="scoreHomeName">Η Ομάδα μου</strong><span id="scoreHome">0</span><b>-</b><span id="scoreAway">0</span><strong id="scoreAwayName">Αντίπαλος</strong></div>
         <div id="timerLive" class="timer-live">00:00</div>
       </header>
