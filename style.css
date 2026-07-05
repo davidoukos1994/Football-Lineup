@@ -1,0 +1,299 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --grass-1: #0b7a33;
+  --grass-2: #0a6b2d;
+  --line: rgba(255, 255, 255, 0.86);
+  --dark: #0f172a;
+  --panel: #ffffff;
+  --muted: #64748b;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #e2e8f0;
+  color: var(--dark);
+}
+
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+}
+
+.panel {
+  background: var(--panel);
+  padding: 22px;
+  overflow-y: auto;
+  border-right: 1px solid #cbd5e1;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.team-logo,
+.header-logo {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e2e8f0;
+  border: 2px solid #cbd5e1;
+}
+
+.header-logo {
+  display: none;
+}
+
+label {
+  display: block;
+  font-weight: 700;
+  margin: 12px 0 6px;
+}
+
+input,
+select,
+button {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+button {
+  cursor: pointer;
+  background: #0f172a;
+  color: white;
+  border: 0;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.file-label {
+  padding: 12px;
+  border: 1px dashed #94a3b8;
+  border-radius: 12px;
+  color: var(--muted);
+}
+
+.file-label input {
+  margin-top: 8px;
+}
+
+.panel h2 {
+  font-size: 18px;
+  margin-top: 22px;
+}
+
+.player-row,
+.sub-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sub-row {
+  grid-template-columns: 1fr 42px;
+}
+
+.sub-row button {
+  margin-top: 0;
+  padding: 10px;
+  background: #dc2626;
+}
+
+.actions {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pitch-wrap {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.team-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.team-header h1 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 44px);
+}
+
+.pitch {
+  position: relative;
+  width: min(92vw, 720px);
+  aspect-ratio: 2 / 3;
+  border: 5px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--grass-1) 0 70px,
+      var(--grass-2) 70px 140px
+    );
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.25);
+}
+
+.halfway {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  background: var(--line);
+}
+
+.center-circle {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 3px solid var(--line);
+  border-radius: 50%;
+}
+
+.center-spot,
+.penalty {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--line);
+  border-radius: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.center-spot {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.penalty-top {
+  top: 14%;
+}
+
+.penalty-bottom {
+  bottom: 14%;
+}
+
+.box,
+.six {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 3px solid var(--line);
+}
+
+.box {
+  width: 62%;
+  height: 18%;
+}
+
+.six {
+  width: 34%;
+  height: 8%;
+}
+
+.box-top,
+.six-top {
+  top: -3px;
+}
+
+.box-bottom,
+.six-bottom {
+  bottom: -3px;
+}
+
+.player {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 104px;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.92);
+  color: white;
+  border: 3px solid white;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.28);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.player small {
+  display: block;
+  font-weight: 400;
+  opacity: 0.78;
+  margin-bottom: 2px;
+}
+
+.subs-card {
+  width: min(92vw, 720px);
+  margin-top: 18px;
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.subs-card h2 {
+  margin-top: 0;
+}
+
+#subsPreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sub-pill {
+  background: #e2e8f0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 920px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    border-right: 0;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .player {
+    width: 86px;
+    min-height: 50px;
+    font-size: 13px;
+  }
+}
