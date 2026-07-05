@@ -1313,3 +1313,143 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v7.4.1 explicit roster save fix ===== */
+(function () {
+  const ROSTER_KEY_V74 = "footballCoachV74Roster";
+
+  function q(id) {
+    return document.getElementById(id);
+  }
+
+  function safeParse(value, fallback) {
+    try {
+      return JSON.parse(value);
+    } catch (err) {
+      return fallback;
+    }
+  }
+
+  function loadData() {
+    const data = safeParse(localStorage.getItem(ROSTER_KEY_V74), null);
+    return data && typeof data === "object"
+      ? { roster: Array.isArray(data.roster) ? data.roster : [], squad: Array.isArray(data.squad) ? data.squad : [] }
+      : { roster: [], squad: [] };
+  }
+
+  function saveData(data) {
+    localStorage.setItem(ROSTER_KEY_V74, JSON.stringify(data));
+  }
+
+  function status(message) {
+    const box = q("rosterSaveStatusV741");
+    if (!box) return;
+    box.textContent = message;
+    setTimeout(() => {
+      if (box.textContent === message) box.textContent = "";
+    }, 2500);
+  }
+
+  function ensureRowsHaveIds(data, rows) {
+    rows.forEach((row, index) => {
+      if (!row.dataset.id || row.dataset.id === "undefined") {
+        if (!data.roster[index]) {
+          data.roster[index] = {
+            id: Date.now() + index + Math.floor(Math.random() * 10000),
+            name: "",
+            number: "",
+            positions: "",
+            foot: "right",
+            minutes: 0,
+            goals: 0,
+            yellow: 0,
+            red: 0
+          };
+        }
+        row.dataset.id = data.roster[index].id;
+      }
+    });
+  }
+
+  function saveRosterFromTableV741() {
+    const table = q("rosterTableV74");
+    if (!table) return;
+
+    const oldData = loadData();
+    const rows = Array.from(table.querySelectorAll("tr[data-id]"));
+    ensureRowsHaveIds(oldData, rows);
+
+    const roster = [];
+    const squad = [];
+
+    rows.forEach((row, index) => {
+      const existing = oldData.roster.find((p) => String(p.id) === String(row.dataset.id)) || {};
+      const player = {
+        id: existing.id || Number(row.dataset.id) || Date.now() + index,
+        name: "",
+        number: "",
+        positions: "",
+        foot: "right",
+        minutes: 0,
+        goals: 0,
+        yellow: 0,
+        red: 0
+      };
+
+      row.querySelectorAll("input[data-field], select[data-field]").forEach((input) => {
+        const field = input.dataset.field;
+        if (["minutes", "goals", "yellow", "red"].includes(field)) {
+          player[field] = Number(input.value || 0);
+        } else {
+          player[field] = input.value || "";
+        }
+      });
+
+      roster.push(player);
+
+      if (row.querySelector(".roster-squad-v74")?.checked) {
+        squad.push(player.id);
+      }
+    });
+
+    saveData({ roster, squad });
+
+    // If original preview/render functions exist, update preview without rebuilding table
+    try {
+      if (typeof renderSquadPreviewV74 === "function") renderSquadPreviewV74();
+    } catch (err) {}
+
+    status("Το ρόστερ αποθηκεύτηκε.");
+  }
+
+  function autosaveOnBlur() {
+    const table = q("rosterTableV74");
+    if (!table || table.dataset.v741Ready === "1") return;
+    table.dataset.v741Ready = "1";
+
+    table.addEventListener("change", saveRosterFromTableV741, true);
+    table.addEventListener("blur", (event) => {
+      if (event.target && event.target.matches("input[data-field], select[data-field], .roster-squad-v74")) {
+        saveRosterFromTableV741();
+      }
+    }, true);
+  }
+
+  function init() {
+    q("saveRosterV741")?.addEventListener("click", saveRosterFromTableV741);
+
+    q("openRosterV74")?.addEventListener("click", () => {
+      setTimeout(autosaveOnBlur, 300);
+    });
+
+    // Also keep checking because table is generated dynamically
+    setInterval(autosaveOnBlur, 1000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
