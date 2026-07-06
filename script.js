@@ -1997,3 +1997,128 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v8.1 Dashboard + Player Profiles ===== */
+(function(){
+  const ROSTER_KEY="footballCoachV74Roster", HISTORY_KEY="footballCoachV73History", ATT_KEY="footballCoachV73Attendance", PROFILES_KEY="footballCoachV81Profiles";
+  let activeProfileId=null;
+
+  function q(id){return document.getElementById(id)}
+  function parseKey(k,f){try{return JSON.parse(localStorage.getItem(k)||"")}catch(e){return f}}
+  function saveKey(k,v){localStorage.setItem(k,JSON.stringify(v)); if(window.FootballCoachStorage) window.FootballCoachStorage.saveNow();}
+  function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+  function roster(){const d=parseKey(ROSTER_KEY,{roster:[],squad:[]})||{};return{roster:Array.isArray(d.roster)?d.roster:[],squad:Array.isArray(d.squad)?d.squad:[]}}
+  function hist(){const d=parseKey(HISTORY_KEY,{players:{},matches:[]})||{};return{players:d.players||{},matches:Array.isArray(d.matches)?d.matches:[]}}
+  function att(){return parseKey(ATT_KEY,{})||{}}
+  function profiles(){return parseKey(PROFILES_KEY,{profiles:{}})||{profiles:{}}}
+  function saveProfiles(d){saveKey(PROFILES_KEY,d)}
+  function monthKey(){const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`}
+  function attSummary(){const m=att()[monthKey()];if(!m||!m.data)return{present:0,absent:0,players:0};let present=0,absent=0;Object.values(m.data).forEach(v=>{if(v==="✓")present++;if(v==="Χ")absent++});return{present,absent,players:Array.isArray(m.players)?m.players.length:0}}
+
+  function renderDashboard(){
+    const r=roster(), h=hist(), a=attSummary();
+    const totalGoals=Object.values(h.players||{}).reduce((s,p)=>s+Number(p.goals||0),0);
+    const totalCards=Object.values(h.players||{}).reduce((s,p)=>s+Number(p.yellow||0)+Number(p.red||0),0);
+    const cards=[["Παίκτες ρόστερ",r.roster.length],["Αποστολή",r.squad.length],["Αγώνες",h.matches.length],["Γκολ",totalGoals],["Κάρτες",totalCards],["Παρουσίες μήνα",a.present],["Απουσίες μήνα",a.absent],["Παίκτες παρουσιολογίου",a.players]];
+    q("dashboardCardsV81").innerHTML=cards.map(([l,v])=>`<div class="dashboard-card-v81"><b>${v}</b><span>${esc(l)}</span></div>`).join("");
+
+    const top=Object.values(h.players||{}).sort((a,b)=>((b.goals||0)-(a.goals||0))||((b.matches||0)-(a.matches||0))).slice(0,8);
+    q("dashboardTopPlayersV81").innerHTML=top.length?top.map((p,i)=>`<div class="dashboard-row-v81"><b>${i+1}. ${esc(p.name||"Παίκτης")}</b>Αγώνες: ${p.matches||0} • Γκολ: ${p.goals||0} • Λεπτά: ${p.minutes||0}</div>`).join(""):'<div class="dashboard-row-v81 dashboard-muted-v81">Δεν υπάρχουν ακόμα στατιστικά.</div>';
+
+    const matches=(h.matches||[]).slice(0,6);
+    q("dashboardLastMatchesV81").innerHTML=matches.length?matches.map(m=>`<div class="dashboard-row-v81"><b>${esc((m.homeTeam||"Ομάδα")+" "+(m.homeScore??0)+"-"+(m.awayScore??0)+" "+(m.awayTeam||"Αντίπαλος"))}</b>${esc([m.season,m.matchDay,m.matchDate||m.savedAt,m.formation].filter(Boolean).join(" • "))}</div>`).join(""):'<div class="dashboard-row-v81 dashboard-muted-v81">Δεν υπάρχουν αγώνες.</div>';
+
+    const current=att()[monthKey()];
+    if(!current||!current.players?.length){q("dashboardAttendanceV81").innerHTML='<div class="dashboard-row-v81 dashboard-muted-v81">Δεν υπάρχει παρουσιολόγιο για τον μήνα.</div>'}
+    else{
+      q("dashboardAttendanceV81").innerHTML=current.players.slice(0,8).map(name=>{
+        let pr=0,ab=0;Object.keys(current.data||{}).forEach(k=>{if(!k.startsWith(name+"|"))return;if(current.data[k]==="✓")pr++;if(current.data[k]==="Χ")ab++});
+        return `<div class="dashboard-row-v81"><b>${esc(name)}</b>Παρουσίες: ${pr} • Απουσίες: ${ab}</div>`;
+      }).join("");
+    }
+  }
+
+  function syncProfilesFromRoster(){
+    const data=profiles(), r=roster();
+    r.roster.forEach(p=>{
+      const id=String(p.id||p.name||Date.now());
+      if(!data.profiles[id]) data.profiles[id]={id,name:p.name||"",number:p.number||"",positions:p.positions||"",foot:p.foot||"right",birth:"",phone:"",notes:"",photo:"",injuries:[]};
+      else Object.assign(data.profiles[id],{name:data.profiles[id].name||p.name||"",number:data.profiles[id].number||p.number||"",positions:data.profiles[id].positions||p.positions||"",foot:data.profiles[id].foot||p.foot||"right"});
+    });
+    saveProfiles(data); renderProfilesList();
+  }
+
+  function renderProfilesList(){
+    const data=profiles(), list=Object.values(data.profiles);
+    const box=q("profilesListV81");
+    box.innerHTML=list.length?list.map(p=>`<div class="profile-card-v81 ${String(p.id)===String(activeProfileId)?"active":""}" data-id="${esc(p.id)}"><b>${esc(p.name||"Χωρίς όνομα")}</b>${esc([p.number,p.positions,p.foot==="left"?"Αριστερό":p.foot==="both"?"Και τα δύο":"Δεξί"].filter(Boolean).join(" • "))}</div>`).join(""):'<div class="profile-card-v81">Πάτα «Συγχρονισμός από ρόστερ».</div>';
+    box.querySelectorAll(".profile-card-v81[data-id]").forEach(el=>el.onclick=()=>loadProfile(el.dataset.id));
+  }
+
+  function loadProfile(id){
+    const p=profiles().profiles[id]; if(!p)return; activeProfileId=id;
+    q("profileIdV81").value=p.id; q("profileNameV81").value=p.name||""; q("profileNumberV81").value=p.number||""; q("profileFootV81").value=p.foot||"right"; q("profilePositionsV81").value=p.positions||""; q("profileBirthV81").value=p.birth||""; q("profilePhoneV81").value=p.phone||""; q("profileNotesV81").value=p.notes||"";
+    q("profilePhotoPreviewV81").src=p.photo||""; renderInjuries(p); renderProfilesList();
+  }
+
+  function currentProfileFromForm(){
+    const id=q("profileIdV81").value||String(Date.now());
+    return {id,name:q("profileNameV81").value,number:q("profileNumberV81").value,foot:q("profileFootV81").value,positions:q("profilePositionsV81").value,birth:q("profileBirthV81").value,phone:q("profilePhoneV81").value,notes:q("profileNotesV81").value,photo:q("profilePhotoPreviewV81").src||"",injuries:(profiles().profiles[id]?.injuries)||[]};
+  }
+
+  function saveProfile(){
+    const data=profiles(), p=currentProfileFromForm(); data.profiles[p.id]=p; activeProfileId=p.id; saveProfiles(data); renderProfilesList(); alert("Η καρτέλα αποθηκεύτηκε.");
+  }
+
+  function renderInjuries(p){
+    const box=q("injuriesListV81"), injuries=p.injuries||[];
+    box.innerHTML=injuries.length?injuries.map((x,i)=>`<div class="injury-card-v81"><b>${esc(x.date||"Χωρίς ημερομηνία")}</b>${esc(x.text||"")}<br><button type="button" data-i="${i}">Διαγραφή</button></div>`).join(""):'<div class="injury-card-v81">Δεν υπάρχουν τραυματισμοί.</div>';
+    box.querySelectorAll("button[data-i]").forEach(b=>b.onclick=()=>{const data=profiles();data.profiles[p.id].injuries.splice(Number(b.dataset.i),1);saveProfiles(data);loadProfile(p.id)});
+  }
+
+  function addInjury(){
+    const id=q("profileIdV81").value; if(!id){alert("Διάλεξε πρώτα παίκτη.");return}
+    const data=profiles(), p=data.profiles[id]||currentProfileFromForm();
+    if(!p.injuries)p.injuries=[];
+    p.injuries.unshift({date:q("injuryDateV81").value,text:q("injuryTextV81").value});
+    data.profiles[id]=p; saveProfiles(data); q("injuryTextV81").value=""; renderInjuries(p);
+  }
+
+  function compressPhoto(file,cb){
+    const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const max=420,scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.round(img.width*scale),h=Math.round(img.height*scale),c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);cb(c.toDataURL("image/jpeg",0.72))};img.src=r.result};r.readAsDataURL(file);
+  }
+
+  function init(){
+    q("openDashboardV81")?.addEventListener("click",()=>{renderDashboard();q("dashboardDialogV81")?.showModal()});
+    q("openPlayerProfilesV81")?.addEventListener("click",()=>{renderProfilesList();q("playerProfilesDialogV81")?.showModal()});
+    q("syncProfilesFromRosterV81")?.addEventListener("click",syncProfilesFromRoster);
+    q("saveProfileV81")?.addEventListener("click",saveProfile);
+    q("addInjuryV81")?.addEventListener("click",addInjury);
+    q("profilePhotoV81")?.addEventListener("change",e=>{const f=e.target.files?.[0];if(f)compressPhoto(f,d=>{q("profilePhotoPreviewV81").src=d;})});
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+})();
+
+
+/* ===== v8.2 Import players from txt/csv/excel/word ===== */
+(function(){
+ const ROSTER_KEY="footballCoachV74Roster", PROFILES_KEY="footballCoachV81Profiles";
+ function q(id){return document.getElementById(id)}
+ function parseLS(k,f){try{return JSON.parse(localStorage.getItem(k)||"")}catch(e){return f}}
+ function saveLS(k,v){localStorage.setItem(k,JSON.stringify(v)); if(window.FootballCoachStorage) window.FootballCoachStorage.saveNow();}
+ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+ function status(m,e){const b=q("importPlayersStatusV82"); if(b){b.textContent=m;b.classList.toggle("error",!!e)}}
+ function norm(s){return String(s||"").trim().toLowerCase().replace(/\s+/g," ").replace(/[ά]/g,"α").replace(/[έ]/g,"ε").replace(/[ή]/g,"η").replace(/[ίϊΐ]/g,"ι").replace(/[ό]/g,"ο").replace(/[ύϋΰ]/g,"υ").replace(/[ώ]/g,"ω")}
+ function field(row,names){const ks=Object.keys(row);for(const n of names){const f=ks.find(k=>norm(k)===norm(n)||norm(k).includes(norm(n))); if(f&&row[f]!=null)return String(row[f]).trim()}return ""}
+ function foot(t){t=norm(t); if(t.includes("αρισ")||t.includes("left"))return"left"; if(t.includes("και")||t.includes("both")||t.includes("δυο"))return"both"; return"right"}
+ function split(line){const out=[];let cur="",q=false;for(const ch of line){if(ch=='"'){q=!q;continue} if((ch==","||ch==";"||ch=="\t")&&!q){out.push(cur.trim());cur="";continue}cur+=ch}out.push(cur.trim());return out}
+ function rowsDelimited(text){const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean); if(!lines.length)return[]; const h=split(lines[0]); const has=h.some(x=>/ονομ|name|θέσ|θεση|position|πόδι|ποδι|foot|number|αριθ|τηλ|phone/i.test(x)); if(has)return lines.slice(1).map(line=>{const v=split(line),o={};h.forEach((k,i)=>o[k]=v[i]||"");return o}); return lines.map(line=>{const v=split(line);return{name:v[0]||"",number:v[1]||"",positions:v[2]||"",foot:v[3]||"",phone:v[4]||"",birth:v[5]||""}})}
+ function rowsText(text){return text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{if(/[;,|\t]/.test(line))return rowsDelimited(line)[0]||{};let o={name:line};let m=line.match(/(?:νο|number|#)\s*[:\-]?\s*(\d+)/i);if(m){o.number=m[1];o.name=o.name.replace(m[0],"").trim()}let pos=line.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/gi);if(pos)o.positions=pos.join(", ");if(/αριστερ|left/i.test(line))o.foot="left";else if(/δεξ|right/i.test(line))o.foot="right";return o})}
+ function toPlayer(r){let name=field(r,["ονοματεπώνυμο","ονοματεπωνυμο","όνομα","ονομα","name","player"])||[field(r,["επώνυμο","επωνυμο","surname"]),field(r,["όνομα","ονομα","first name"])].filter(Boolean).join(" ")||r.name||"";return{id:Date.now()+Math.floor(Math.random()*999999),name:String(name).trim(),number:field(r,["αριθμός","αριθμος","νο","number","#"])||r.number||"",positions:field(r,["θέσεις","θεσεις","θέση","θεση","positions","position"])||r.positions||"",foot:foot(field(r,["πόδι","ποδι","καλό πόδι","καλο ποδι","foot"])||r.foot||""),minutes:Number(field(r,["λεπτά","λεπτα","minutes"])||r.minutes||0),goals:Number(field(r,["γκολ","goals"])||r.goals||0),yellow:Number(field(r,["κίτρινες","κιτρινες","yellow"])||r.yellow||0),red:Number(field(r,["κόκκινες","κοκκινες","red"])||r.red||0),birth:field(r,["ημ γέννησης","ημ γεννησης","birth","birthday"])||r.birth||"",phone:field(r,["τηλέφωνο","τηλεφωνο","phone","mobile"])||r.phone||"",notes:field(r,["σημειώσεις","σημειωσεις","notes"])||r.notes||""}}
+ async function parseFile(file){const ext=file.name.split(".").pop().toLowerCase(); if(ext==="xlsx"||ext==="xls"){if(!window.XLSX)throw Error("Δεν φορτώθηκε το Excel reader.");const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""})} if(ext==="docx"){if(!window.mammoth)throw Error("Δεν φορτώθηκε το Word reader.");const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});const t=r.value||"";return /[;,|\t]/.test(t)?rowsDelimited(t):rowsText(t)} const t=await file.text();return /[;,|\t]/.test((t.split(/\r?\n/)[0]||""))?rowsDelimited(t):rowsText(t)}
+ function merge(players){const d=parseLS(ROSTER_KEY,{roster:[],squad:[]})||{roster:[],squad:[]};d.roster=Array.isArray(d.roster)?d.roster:[];d.squad=Array.isArray(d.squad)?d.squad:[];const pr=parseLS(PROFILES_KEY,{profiles:{}})||{profiles:{}};const map=new Map(d.roster.map(p=>[norm(p.name),p]));let a=0,u=0;players.filter(p=>p.name).forEach(p=>{let key=norm(p.name),target=map.get(key);if(target){Object.assign(target,{number:p.number||target.number,positions:p.positions||target.positions,foot:p.foot||target.foot,minutes:p.minutes||target.minutes||0,goals:p.goals||target.goals||0,yellow:p.yellow||target.yellow||0,red:p.red||target.red||0});u++}else{d.roster.push(p);map.set(key,p);target=p;a++}let id=String(target.id);if(!pr.profiles[id])pr.profiles[id]={id,name:p.name,number:p.number,positions:p.positions,foot:p.foot,birth:p.birth,phone:p.phone,notes:p.notes,photo:"",injuries:[]};else Object.assign(pr.profiles[id],{name:p.name,number:p.number||pr.profiles[id].number,positions:p.positions||pr.profiles[id].positions,foot:p.foot||pr.profiles[id].foot,birth:p.birth||pr.profiles[id].birth,phone:p.phone||pr.profiles[id].phone,notes:p.notes||pr.profiles[id].notes})});saveLS(ROSTER_KEY,d);saveLS(PROFILES_KEY,pr);try{if(typeof renderRosterV74==="function")renderRosterV74()}catch(e){};const box=q("importPlayersPreviewV82");if(box)box.innerHTML=`<div class="import-card-v82"><b>Αποτέλεσμα εισαγωγής</b>Προστέθηκαν: ${a} • Ενημερώθηκαν: ${u} • Διαβάστηκαν: ${players.length}</div>`+players.slice(0,8).map(p=>`<div class="import-card-v82"><b>${esc(p.name)}</b>Νο: ${esc(p.number)} • Θέσεις: ${esc(p.positions)} • Πόδι: ${p.foot==="left"?"Αριστερό":p.foot==="both"?"Και τα δύο":"Δεξί"}</div>`).join("");status(`Προστέθηκαν ${a}, ενημερώθηκαν ${u}.`)}
+ async function importFile(e){const file=e.target.files?.[0]; if(!file)return; status("Διαβάζω το αρχείο..."); try{const rows=await parseFile(file);const players=rows.map(toPlayer).filter(p=>p.name); if(!players.length){status("Δεν βρήκα παίκτες στο αρχείο.",true);return} merge(players)}catch(err){status("Σφάλμα εισαγωγής: "+err.message,true)} e.target.value=""}
+ function init(){q("importPlayersFileV82")?.addEventListener("change",importFile)}
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+})();

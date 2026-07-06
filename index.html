@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v8.0.2.2.2</title>
+<title>Football Coach v8.2.2.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -66,6 +66,8 @@
     <button id="openNotes">Σημειώσεις</button>
     <button id="openAttendanceV73" type="button">Παρουσιολόγιο</button>
     <button id="openRosterV74" type="button">Ρόστερ / Αποστολή αγώνα</button>
+    <button id="openDashboardV81" type="button">Dashboard ομάδας</button>
+    <button id="openPlayerProfilesV81" type="button">Καρτέλες παικτών</button>
     <button id="saveMatch">Τέλος αγώνα / Αποθήκευση</button>
     <button id="saveMatchV73" type="button">Αποθήκευση αγώνα</button>
     <button id="openRoundsV75" type="button">Αγωνιστικές</button>
@@ -282,6 +284,7 @@
 
     <div class="roster-actions-v74">
       <button id="addRosterPlayerV74" type="button">+ Νέος παίκτης</button>
+      <label class="import-players-v82">Προσθήκη από αρχείο<input id="importPlayersFileV82" type="file" accept=".txt,.csv,.xlsx,.xls,.docx"></label>
       <button id="saveRosterV741" type="button">Αποθήκευση ρόστερ</button>
       <button id="syncRosterFromLineupV74" type="button">Παίκτες από την τρέχουσα λίστα</button>
       <button id="applySquadToLineupV74" type="button">Πέρασμα στην αποστολή</button>
@@ -295,6 +298,8 @@
 
     <div id="rosterSaveStatusV741" class="roster-save-status-v741"></div>
 
+    <div id="importPlayersStatusV82" class="import-status-v82"></div>
+    <div id="importPlayersPreviewV82" class="import-preview-v82"></div>
     <div class="roster-table-wrap-v74">
       <table id="rosterTableV74"></table>
     </div>
@@ -324,8 +329,63 @@
   </form>
 </dialog>
 
+
+<dialog id="dashboardDialogV81">
+  <form method="dialog" class="modal dashboard-v81">
+    <div class="modal-head"><h2>Dashboard ομάδας</h2><button value="close" type="submit">Κλείσιμο</button></div>
+    <div id="dashboardCardsV81" class="dashboard-cards-v81"></div>
+    <h3>Πρώτοι παίκτες</h3><div id="dashboardTopPlayersV81" class="dashboard-list-v81"></div>
+    <h3>Τελευταίοι αγώνες</h3><div id="dashboardLastMatchesV81" class="dashboard-list-v81"></div>
+    <h3>Παρουσίες τρέχοντος μήνα</h3><div id="dashboardAttendanceV81" class="dashboard-list-v81"></div>
+  </form>
+</dialog>
+
+<dialog id="playerProfilesDialogV81">
+  <form method="dialog" class="modal profiles-v81">
+    <div class="modal-head"><h2>Καρτέλες παικτών</h2><button value="close" type="submit">Κλείσιμο</button></div>
+    <div class="profiles-layout-v81">
+      <div>
+        <button id="syncProfilesFromRosterV81" type="button">Συγχρονισμός από ρόστερ</button>
+        <div id="profilesListV81" class="profiles-list-v81"></div>
+      </div>
+      <div class="profile-editor-v81">
+        <input id="profileIdV81" type="hidden">
+        <div class="profile-photo-row-v81">
+          <img id="profilePhotoPreviewV81" class="profile-photo-v81" alt="">
+          <label class="profile-photo-upload-v81">Φωτογραφία
+            <input id="profilePhotoV81" type="file" accept="image/*">
+          </label>
+        </div>
+        <label>Ονοματεπώνυμο</label><input id="profileNameV81" type="text">
+        <div class="grid2">
+          <div><label>Αριθμός</label><input id="profileNumberV81" type="text"></div>
+          <div><label>Πόδι</label><select id="profileFootV81"><option value="right">Δεξί</option><option value="left">Αριστερό</option><option value="both">Και τα δύο</option></select></div>
+        </div>
+        <label>Θέσεις</label><input id="profilePositionsV81" type="text" placeholder="π.χ. CB, CM, ST">
+        <div class="grid2">
+          <div><label>Ημ. γέννησης</label><input id="profileBirthV81" type="date"></div>
+          <div><label>Τηλέφωνο</label><input id="profilePhoneV81" type="text"></div>
+        </div>
+        <label>Σημειώσεις παίκτη</label><textarea id="profileNotesV81" rows="4"></textarea>
+
+        <h3>Τραυματισμοί</h3>
+        <div class="injury-add-v81">
+          <input id="injuryDateV81" type="date">
+          <input id="injuryTextV81" type="text" placeholder="π.χ. διάστρεμμα, θλάση">
+          <button id="addInjuryV81" type="button">+ Προσθήκη</button>
+        </div>
+        <div id="injuriesListV81" class="injuries-list-v81"></div>
+
+        <button id="saveProfileV81" type="button">Αποθήκευση καρτέλας</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="idb-storage.js"></script>
 <script src="script.js"></script>
 </body>
