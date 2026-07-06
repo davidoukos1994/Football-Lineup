@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v8.1 Share.2.2.2</title>
+<title>Football Coach v8.1.1.1.2.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -76,6 +76,7 @@
         <button id="saveNowV752" type="button">Αποθήκευση τώρα</button>
         <button id="backupAllV751" type="button">Backup όλων</button>
     <button id="openTransferV81S" type="button">Αποστολή / Μεταφορά δεδομένων</button>
+    <button id="openTransferV811" type="button">Αποστολή / Μεταφορά δεδομένων</button>
         <label class="restore-v751-label">Restore
           <input id="restoreAllV751" type="file" accept="application/json" />
         </label>
@@ -331,6 +332,7 @@
 <dialog id="dashboardDialogV81">
   <form method="dialog" class="modal dashboard-v81">
     <div class="modal-head"><h2>Dashboard ομάδας</h2><button value="close" type="submit">Κλείσιμο</button></div>
+    <div class="dashboard-actions-v811"><button id="clearDashboardV811" type="button">Καθαρισμός Dashboard / στατιστικών</button></div>
     <div id="dashboardCardsV81" class="dashboard-cards-v81"></div>
     <h3>Πρώτοι παίκτες</h3><div id="dashboardTopPlayersV81" class="dashboard-list-v81"></div>
     <h3>Τελευταίοι αγώνες</h3><div id="dashboardLastMatchesV81" class="dashboard-list-v81"></div>
@@ -375,6 +377,7 @@
         <div id="injuriesListV81" class="injuries-list-v81"></div>
 
         <button id="saveProfileV81" type="button">Αποθήκευση καρτέλας</button>
+        <button id="deleteProfileV811" type="button">Διαγραφή παίκτη</button>
       </div>
     </div>
   </form>
@@ -409,6 +412,20 @@
       <li>Στη νέα συσκευή άνοιξε την εφαρμογή.</li>
       <li>Πάτα «Restore από αρχείο» και διάλεξε το backup.</li>
     </ol>
+  </form>
+</dialog>
+
+
+<dialog id="transferDialogV811">
+  <form method="dialog" class="modal transfer-v811">
+    <div class="modal-head"><h2>Αποστολή / Μεταφορά δεδομένων</h2><button value="close" type="submit">Κλείσιμο</button></div>
+    <p class="transfer-tip-v811">Δημιούργησε αρχείο backup και στείλ’ το με Mail, Messenger, Viber ή AirDrop. Στην άλλη συσκευή κάνεις Restore από το αρχείο.</p>
+    <div class="transfer-actions-v811">
+      <button id="shareBackupV811" type="button">Κοινή χρήση</button>
+      <button id="downloadBackupV811" type="button">Λήψη backup</button>
+      <label class="restore-transfer-v811">Restore από αρχείο<input id="restoreTransferV811" type="file" accept="application/json"></label>
+    </div>
+    <div id="transferStatusV811" class="transfer-status-v811">Έτοιμο.</div>
   </form>
 </dialog>
 

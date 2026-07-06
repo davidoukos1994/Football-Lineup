@@ -614,3 +614,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v8.1.1 fixes */
+.transfer-v811{padding:18px;background:white;max-height:85vh;overflow-y:auto}
+.transfer-actions-v811{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.restore-transfer-v811{margin-top:8px;display:block;border-radius:10px;padding:10px 12px;background:#0f172a;color:white;text-align:center;font-weight:800;cursor:pointer}
+.restore-transfer-v811 input{display:none}
+.transfer-status-v811{background:#f1f5f9;border-radius:12px;padding:10px;margin:12px 0;color:#334155;font-weight:800}
+.transfer-status-v811.ok{color:#166534}.transfer-status-v811.error{color:#dc2626}
+.dashboard-card-v81{cursor:pointer}.dashboard-card-v81:hover{outline:2px solid #0f172a}
+.dashboard-actions-v811{display:grid;grid-template-columns:1fr;margin:10px 0}
+.dashboard-actions-v811 button,#deleteProfileV811{background:#dc2626}
+@media(max-width:820px){.transfer-actions-v811{grid-template-columns:1fr}}
