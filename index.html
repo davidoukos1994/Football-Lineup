@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v8.2.2.2.2</title>
+<title>Football Coach v8.1 Share.2.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -75,6 +75,7 @@
       <div class="backup-v751-grid">
         <button id="saveNowV752" type="button">Αποθήκευση τώρα</button>
         <button id="backupAllV751" type="button">Backup όλων</button>
+    <button id="openTransferV81S" type="button">Αποστολή / Μεταφορά δεδομένων</button>
         <label class="restore-v751-label">Restore
           <input id="restoreAllV751" type="file" accept="application/json" />
         </label>
@@ -284,7 +285,6 @@
 
     <div class="roster-actions-v74">
       <button id="addRosterPlayerV74" type="button">+ Νέος παίκτης</button>
-      <label class="import-players-v82">Προσθήκη από αρχείο<input id="importPlayersFileV82" type="file" accept=".txt,.csv,.xlsx,.xls,.docx"></label>
       <button id="saveRosterV741" type="button">Αποθήκευση ρόστερ</button>
       <button id="syncRosterFromLineupV74" type="button">Παίκτες από την τρέχουσα λίστα</button>
       <button id="applySquadToLineupV74" type="button">Πέρασμα στην αποστολή</button>
@@ -298,8 +298,6 @@
 
     <div id="rosterSaveStatusV741" class="roster-save-status-v741"></div>
 
-    <div id="importPlayersStatusV82" class="import-status-v82"></div>
-    <div id="importPlayersPreviewV82" class="import-preview-v82"></div>
     <div class="roster-table-wrap-v74">
       <table id="rosterTableV74"></table>
     </div>
@@ -382,10 +380,40 @@
   </form>
 </dialog>
 
+
+<dialog id="transferDialogV81S">
+  <form method="dialog" class="modal transfer-v81s">
+    <div class="modal-head">
+      <h2>Αποστολή / Μεταφορά δεδομένων</h2>
+      <button value="close" type="submit">Κλείσιμο</button>
+    </div>
+
+    <p class="transfer-tip-v81s">
+      Δημιούργησε ένα αρχείο με όλα τα αποθηκευμένα δεδομένα σου και στείλ’ το με Mail, Messenger, Viber ή άνοιξέ το σε άλλη συσκευή με Restore.
+    </p>
+
+    <div class="transfer-actions-v81s">
+      <button id="shareBackupV81S" type="button">Κοινή χρήση αρχείου</button>
+      <button id="downloadBackupV81S" type="button">Λήψη αρχείου backup</button>
+      <label class="restore-transfer-v81s">Restore από αρχείο
+        <input id="restoreTransferV81S" type="file" accept="application/json" />
+      </label>
+    </div>
+
+    <div id="transferStatusV81S" class="transfer-status-v81s"></div>
+
+    <h3>Οδηγίες</h3>
+    <ol class="transfer-steps-v81s">
+      <li>Στην παλιά συσκευή πάτα «Κοινή χρήση αρχείου» ή «Λήψη αρχείου backup».</li>
+      <li>Στείλε το αρχείο στον εαυτό σου με Mail, Messenger, Viber ή AirDrop.</li>
+      <li>Στη νέα συσκευή άνοιξε την εφαρμογή.</li>
+      <li>Πάτα «Restore από αρχείο» και διάλεξε το backup.</li>
+    </ol>
+  </form>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="idb-storage.js"></script>
 <script src="script.js"></script>
 </body>

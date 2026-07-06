@@ -2101,24 +2101,182 @@ load();render();
 })();
 
 
-/* ===== v8.2 Import players from txt/csv/excel/word ===== */
-(function(){
- const ROSTER_KEY="footballCoachV74Roster", PROFILES_KEY="footballCoachV81Profiles";
- function q(id){return document.getElementById(id)}
- function parseLS(k,f){try{return JSON.parse(localStorage.getItem(k)||"")}catch(e){return f}}
- function saveLS(k,v){localStorage.setItem(k,JSON.stringify(v)); if(window.FootballCoachStorage) window.FootballCoachStorage.saveNow();}
- function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
- function status(m,e){const b=q("importPlayersStatusV82"); if(b){b.textContent=m;b.classList.toggle("error",!!e)}}
- function norm(s){return String(s||"").trim().toLowerCase().replace(/\s+/g," ").replace(/[ά]/g,"α").replace(/[έ]/g,"ε").replace(/[ή]/g,"η").replace(/[ίϊΐ]/g,"ι").replace(/[ό]/g,"ο").replace(/[ύϋΰ]/g,"υ").replace(/[ώ]/g,"ω")}
- function field(row,names){const ks=Object.keys(row);for(const n of names){const f=ks.find(k=>norm(k)===norm(n)||norm(k).includes(norm(n))); if(f&&row[f]!=null)return String(row[f]).trim()}return ""}
- function foot(t){t=norm(t); if(t.includes("αρισ")||t.includes("left"))return"left"; if(t.includes("και")||t.includes("both")||t.includes("δυο"))return"both"; return"right"}
- function split(line){const out=[];let cur="",q=false;for(const ch of line){if(ch=='"'){q=!q;continue} if((ch==","||ch==";"||ch=="\t")&&!q){out.push(cur.trim());cur="";continue}cur+=ch}out.push(cur.trim());return out}
- function rowsDelimited(text){const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean); if(!lines.length)return[]; const h=split(lines[0]); const has=h.some(x=>/ονομ|name|θέσ|θεση|position|πόδι|ποδι|foot|number|αριθ|τηλ|phone/i.test(x)); if(has)return lines.slice(1).map(line=>{const v=split(line),o={};h.forEach((k,i)=>o[k]=v[i]||"");return o}); return lines.map(line=>{const v=split(line);return{name:v[0]||"",number:v[1]||"",positions:v[2]||"",foot:v[3]||"",phone:v[4]||"",birth:v[5]||""}})}
- function rowsText(text){return text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{if(/[;,|\t]/.test(line))return rowsDelimited(line)[0]||{};let o={name:line};let m=line.match(/(?:νο|number|#)\s*[:\-]?\s*(\d+)/i);if(m){o.number=m[1];o.name=o.name.replace(m[0],"").trim()}let pos=line.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/gi);if(pos)o.positions=pos.join(", ");if(/αριστερ|left/i.test(line))o.foot="left";else if(/δεξ|right/i.test(line))o.foot="right";return o})}
- function toPlayer(r){let name=field(r,["ονοματεπώνυμο","ονοματεπωνυμο","όνομα","ονομα","name","player"])||[field(r,["επώνυμο","επωνυμο","surname"]),field(r,["όνομα","ονομα","first name"])].filter(Boolean).join(" ")||r.name||"";return{id:Date.now()+Math.floor(Math.random()*999999),name:String(name).trim(),number:field(r,["αριθμός","αριθμος","νο","number","#"])||r.number||"",positions:field(r,["θέσεις","θεσεις","θέση","θεση","positions","position"])||r.positions||"",foot:foot(field(r,["πόδι","ποδι","καλό πόδι","καλο ποδι","foot"])||r.foot||""),minutes:Number(field(r,["λεπτά","λεπτα","minutes"])||r.minutes||0),goals:Number(field(r,["γκολ","goals"])||r.goals||0),yellow:Number(field(r,["κίτρινες","κιτρινες","yellow"])||r.yellow||0),red:Number(field(r,["κόκκινες","κοκκινες","red"])||r.red||0),birth:field(r,["ημ γέννησης","ημ γεννησης","birth","birthday"])||r.birth||"",phone:field(r,["τηλέφωνο","τηλεφωνο","phone","mobile"])||r.phone||"",notes:field(r,["σημειώσεις","σημειωσεις","notes"])||r.notes||""}}
- async function parseFile(file){const ext=file.name.split(".").pop().toLowerCase(); if(ext==="xlsx"||ext==="xls"){if(!window.XLSX)throw Error("Δεν φορτώθηκε το Excel reader.");const wb=XLSX.read(await file.arrayBuffer(),{type:"array"});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""})} if(ext==="docx"){if(!window.mammoth)throw Error("Δεν φορτώθηκε το Word reader.");const r=await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()});const t=r.value||"";return /[;,|\t]/.test(t)?rowsDelimited(t):rowsText(t)} const t=await file.text();return /[;,|\t]/.test((t.split(/\r?\n/)[0]||""))?rowsDelimited(t):rowsText(t)}
- function merge(players){const d=parseLS(ROSTER_KEY,{roster:[],squad:[]})||{roster:[],squad:[]};d.roster=Array.isArray(d.roster)?d.roster:[];d.squad=Array.isArray(d.squad)?d.squad:[];const pr=parseLS(PROFILES_KEY,{profiles:{}})||{profiles:{}};const map=new Map(d.roster.map(p=>[norm(p.name),p]));let a=0,u=0;players.filter(p=>p.name).forEach(p=>{let key=norm(p.name),target=map.get(key);if(target){Object.assign(target,{number:p.number||target.number,positions:p.positions||target.positions,foot:p.foot||target.foot,minutes:p.minutes||target.minutes||0,goals:p.goals||target.goals||0,yellow:p.yellow||target.yellow||0,red:p.red||target.red||0});u++}else{d.roster.push(p);map.set(key,p);target=p;a++}let id=String(target.id);if(!pr.profiles[id])pr.profiles[id]={id,name:p.name,number:p.number,positions:p.positions,foot:p.foot,birth:p.birth,phone:p.phone,notes:p.notes,photo:"",injuries:[]};else Object.assign(pr.profiles[id],{name:p.name,number:p.number||pr.profiles[id].number,positions:p.positions||pr.profiles[id].positions,foot:p.foot||pr.profiles[id].foot,birth:p.birth||pr.profiles[id].birth,phone:p.phone||pr.profiles[id].phone,notes:p.notes||pr.profiles[id].notes})});saveLS(ROSTER_KEY,d);saveLS(PROFILES_KEY,pr);try{if(typeof renderRosterV74==="function")renderRosterV74()}catch(e){};const box=q("importPlayersPreviewV82");if(box)box.innerHTML=`<div class="import-card-v82"><b>Αποτέλεσμα εισαγωγής</b>Προστέθηκαν: ${a} • Ενημερώθηκαν: ${u} • Διαβάστηκαν: ${players.length}</div>`+players.slice(0,8).map(p=>`<div class="import-card-v82"><b>${esc(p.name)}</b>Νο: ${esc(p.number)} • Θέσεις: ${esc(p.positions)} • Πόδι: ${p.foot==="left"?"Αριστερό":p.foot==="both"?"Και τα δύο":"Δεξί"}</div>`).join("");status(`Προστέθηκαν ${a}, ενημερώθηκαν ${u}.`)}
- async function importFile(e){const file=e.target.files?.[0]; if(!file)return; status("Διαβάζω το αρχείο..."); try{const rows=await parseFile(file);const players=rows.map(toPlayer).filter(p=>p.name); if(!players.length){status("Δεν βρήκα παίκτες στο αρχείο.",true);return} merge(players)}catch(err){status("Σφάλμα εισαγωγής: "+err.message,true)} e.target.value=""}
- function init(){q("importPlayersFileV82")?.addEventListener("change",importFile)}
- if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+/* ===== v8.1 Share / Transfer backup between devices ===== */
+(function () {
+  const TRANSFER_VERSION = "8.1-share";
+
+  function q(id) { return document.getElementById(id); }
+
+  function setStatus(message, type) {
+    const box = q("transferStatusV81S");
+    if (!box) return;
+    box.textContent = message;
+    box.classList.remove("ok", "error");
+    if (type) box.classList.add(type);
+  }
+
+  function safeParse(value, fallback) {
+    try { return JSON.parse(value); } catch (err) { return fallback; }
+  }
+
+  function allLocalStorage() {
+    const out = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        out[key] = localStorage.getItem(key);
+      }
+    } catch (err) {}
+    return out;
+  }
+
+  async function allIndexedDbData() {
+    const out = {};
+    try {
+      if (window.FootballCoachStorage && typeof window.FootballCoachStorage.exportAll === "function") {
+        return await window.FootballCoachStorage.exportAll();
+      }
+    } catch (err) {}
+    return out;
+  }
+
+  async function buildTransferPayload() {
+    try {
+      if (typeof window.footballCoachSaveNow === "function") {
+        window.footballCoachSaveNow();
+      }
+    } catch (err) {}
+
+    try {
+      if (window.FootballCoachStorage && typeof window.FootballCoachStorage.saveNow === "function") {
+        window.FootballCoachStorage.saveNow();
+      }
+    } catch (err) {}
+
+    const idb = await allIndexedDbData();
+    const ls = allLocalStorage();
+
+    return {
+      app: "Football Coach",
+      version: TRANSFER_VERSION,
+      createdAt: new Date().toISOString(),
+      note: "Backup για μεταφορά σε άλλη συσκευή",
+      indexedDB: idb,
+      localStorage: ls
+    };
+  }
+
+  function filename() {
+    const d = new Date();
+    const stamp = [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      String(d.getDate()).padStart(2, "0"),
+      String(d.getHours()).padStart(2, "0"),
+      String(d.getMinutes()).padStart(2, "0")
+    ].join("-");
+    return `football-coach-transfer-${stamp}.json`;
+  }
+
+  async function createBackupFile() {
+    const payload = await buildTransferPayload();
+    const text = JSON.stringify(payload, null, 2);
+    return new File([text], filename(), { type: "application/json" });
+  }
+
+  async function downloadBackup() {
+    try {
+      setStatus("Δημιουργώ αρχείο backup...", "");
+      const file = await createBackupFile();
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus("Το αρχείο backup δημιουργήθηκε. Μπορείς να το στείλεις όπου θέλεις.", "ok");
+    } catch (err) {
+      setStatus("Δεν μπόρεσα να δημιουργήσω backup.", "error");
+    }
+  }
+
+  async function shareBackup() {
+    try {
+      setStatus("Ετοιμάζω το αρχείο για κοινή χρήση...", "");
+      const file = await createBackupFile();
+
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: "Football Coach Backup",
+          text: "Backup δεδομένων Football Coach"
+        });
+        setStatus("Το αρχείο στάλθηκε/κοινοποιήθηκε.", "ok");
+      } else {
+        setStatus("Η συσκευή δεν υποστηρίζει απευθείας κοινή χρήση αρχείου. Θα γίνει λήψη backup.", "");
+        await downloadBackup();
+      }
+    } catch (err) {
+      if (String(err && err.name) === "AbortError") {
+        setStatus("Η κοινή χρήση ακυρώθηκε.", "");
+      } else {
+        setStatus("Δεν μπόρεσα να κάνω κοινή χρήση. Δοκίμασε «Λήψη αρχείου backup».", "error");
+      }
+    }
+  }
+
+  async function restorePayload(payload) {
+    if (!payload || typeof payload !== "object") throw new Error("Λάθος αρχείο.");
+
+    if (payload.localStorage && typeof payload.localStorage === "object") {
+      Object.keys(payload.localStorage).forEach((key) => {
+        try { localStorage.setItem(key, payload.localStorage[key]); } catch (err) {}
+      });
+    }
+
+    if (payload.indexedDB && typeof payload.indexedDB === "object") {
+      Object.keys(payload.indexedDB).forEach((key) => {
+        try { localStorage.setItem(key, payload.indexedDB[key]); } catch (err) {}
+      });
+
+      if (window.FootballCoachStorage && typeof window.FootballCoachStorage.saveNow === "function") {
+        try { window.FootballCoachStorage.saveNow(); } catch (err) {}
+      }
+    }
+
+    return true;
+  }
+
+  function restoreFromFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function () {
+      try {
+        const payload = JSON.parse(reader.result);
+        await restorePayload(payload);
+        setStatus("Το Restore ολοκληρώθηκε. Η σελίδα θα ανανεωθεί.", "ok");
+        alert("Το Restore ολοκληρώθηκε. Η σελίδα θα ανανεωθεί.");
+        location.reload();
+      } catch (err) {
+        setStatus("Δεν είναι σωστό αρχείο backup.", "error");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function init() {
+    q("openTransferV81S")?.addEventListener("click", () => {
+      setStatus("Έτοιμο για δημιουργία backup ή restore.", "");
+      q("transferDialogV81S")?.showModal();
+    });
+
+    q("shareBackupV81S")?.addEventListener("click", shareBackup);
+    q("downloadBackupV81S")?.addEventListener("click", downloadBackup);
+    q("restoreTransferV81S")?.addEventListener("change", restoreFromFile);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 })();
