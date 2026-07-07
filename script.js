@@ -3014,3 +3014,197 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v8.1.6 roster player selector for pitch popup ===== */
+(function () {
+  const ROSTER_KEY = "footballCoachV74Roster";
+
+  function q(id) { return document.getElementById(id); }
+
+  function load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || ""); }
+    catch (err) { return fallback; }
+  }
+
+  function saveNow() {
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (err) {}
+    try { if (typeof save === "function") save(); } catch (err) {}
+  }
+
+  function clean(value) {
+    return String(value || "")
+      .trim()
+      .toLocaleLowerCase("el-GR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function sortPlayers(a, b) {
+    return clean(a.name).localeCompare(clean(b.name), "el", { sensitivity: "base", numeric: true });
+  }
+
+  function rosterPlayers() {
+    const data = load(ROSTER_KEY, { roster: [] });
+    return (Array.isArray(data.roster) ? data.roster : [])
+      .filter((p) => p && p.name)
+      .sort(sortPlayers);
+  }
+
+  function normalizePositions(pos) {
+    return String(pos || "")
+      .toUpperCase()
+      .replace(/[./|]/g, ",")
+      .split(/[,\s]+/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  function playerMatchesPosition(player, position) {
+    if (!position) return false;
+    const p = String(position || "").toUpperCase().trim();
+    const positions = normalizePositions(player.positions);
+    return positions.includes(p);
+  }
+
+  function detectCurrentPosition() {
+    let pos = "";
+
+    try {
+      if (typeof editingPlayerIndex !== "undefined" && typeof players !== "undefined" && players[editingPlayerIndex]) {
+        pos = players[editingPlayerIndex].pos || players[editingPlayerIndex].position || "";
+      }
+    } catch (err) {}
+
+    if (!pos) {
+      const visibleText = document.querySelector("#quickPlayerDialogV72, dialog[open]")?.textContent || "";
+      const match = visibleText.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/);
+      if (match) pos = match[1];
+    }
+
+    return String(pos || "").toUpperCase();
+  }
+
+  function ensureSuggestionBox(select) {
+    if (!select) return null;
+    let box = document.getElementById("positionSuggestionV816");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "positionSuggestionV816";
+      box.className = "position-suggestion-v816";
+      select.insertAdjacentElement("afterend", box);
+    }
+    return box;
+  }
+
+  function fillSelect() {
+    const select = q("assignFromSquadV74") || q("quickPlayerSelect") || document.querySelector('select[id*="Squad"], select[id*="Player"]');
+    if (!select) return;
+
+    const position = detectCurrentPosition();
+    const all = rosterPlayers();
+
+    const recommended = position ? all.filter((p) => playerMatchesPosition(p, position)) : [];
+    const rest = all.filter((p) => !recommended.some((r) => String(r.id) === String(p.id)));
+
+    let html = '<option value="">-- διάλεξε παίκτη --</option>';
+
+    if (recommended.length) {
+      html += `<optgroup label="Προτεινόμενοι για ${position}">`;
+      html += recommended.map((p) => `<option value="${p.id}">${p.name}${p.positions ? " • " + p.positions : ""}</option>`).join("");
+      html += "</optgroup>";
+    }
+
+    html += '<optgroup label="Όλοι οι παίκτες">';
+    html += rest.map((p) => `<option value="${p.id}">${p.name}${p.positions ? " • " + p.positions : ""}</option>`).join("");
+    html += "</optgroup>";
+
+    select.innerHTML = html;
+
+    const box = ensureSuggestionBox(select);
+    if (box) {
+      if (position && recommended.length) box.textContent = `Προτείνονται πρώτα οι παίκτες που έχουν θέση ${position}. Μπορείς όμως να επιλέξεις οποιονδήποτε.`;
+      else if (position) box.textContent = `Δεν βρέθηκαν παίκτες με θέση ${position}. Μπορείς να επιλέξεις οποιονδήποτε από το ρόστερ.`;
+      else box.textContent = "Επιλογή παίκτη από το ρόστερ.";
+    }
+  }
+
+  function applySelectedPlayer(playerId) {
+    const player = rosterPlayers().find((p) => String(p.id) === String(playerId));
+    if (!player) return;
+
+    const nameInput =
+      q("quickPlayerNameV72") ||
+      q("quickPlayerName") ||
+      document.querySelector('input[id*="PlayerName"], input[id*="Name"]');
+
+    const numberInput =
+      q("quickPlayerNumberV72") ||
+      q("quickPlayerNumber") ||
+      document.querySelector('input[id*="PlayerNumber"], input[id*="Number"]');
+
+    if (nameInput) {
+      nameInput.value = player.name || "";
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    if (numberInput) {
+      numberInput.value = player.number || "";
+      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
+      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    // If known app globals exist, update selected player immediately too.
+    try {
+      if (typeof editingPlayerIndex !== "undefined" && typeof players !== "undefined" && players[editingPlayerIndex]) {
+        players[editingPlayerIndex].name = player.name || "";
+        players[editingPlayerIndex].number = player.number || "";
+        if (typeof render === "function") render();
+      }
+    } catch (err) {}
+
+    saveNow();
+  }
+
+  function wireSelect() {
+    const select = q("assignFromSquadV74") || q("quickPlayerSelect") || document.querySelector('select[id*="Squad"], select[id*="Player"]');
+    if (!select || select.dataset.v816Ready === "1") return;
+
+    select.dataset.v816Ready = "1";
+
+    select.addEventListener("focus", fillSelect);
+    select.addEventListener("click", fillSelect);
+    select.addEventListener("mousedown", fillSelect);
+    select.addEventListener("touchstart", fillSelect);
+    select.addEventListener("change", function () {
+      applySelectedPlayer(select.value);
+    });
+  }
+
+  function patchPopupOpen() {
+    document.addEventListener("click", function (event) {
+      const playerEl = event.target.closest(".player, .player-token, .player-marker, [data-player-index]");
+      if (!playerEl) return;
+      setTimeout(function () {
+        fillSelect();
+        wireSelect();
+      }, 200);
+    }, true);
+  }
+
+  function init() {
+    wireSelect();
+    fillSelect();
+    patchPopupOpen();
+
+    setInterval(function () {
+      wireSelect();
+      const dialogOpen = document.querySelector("#quickPlayerDialogV72[open], dialog[open]");
+      if (dialogOpen) fillSelect();
+    }, 1000);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

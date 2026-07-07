@@ -636,3 +636,11 @@
   font-weight: 800;
   color: #475569;
 }
+
+
+/* v8.1.6 player select fix */
+.position-suggestion-v816 {
+  font-size: 12px;
+  color: #64748b;
+  margin: 4px 0 8px;
+}
