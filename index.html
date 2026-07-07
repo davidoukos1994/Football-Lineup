@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Football Coach v8.1.1.1.2.2.2</title>
+<title>Football Coach v8.1.2.2.1.2.2.2</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +11,9 @@
   <aside class="sidebar">
     <div class="top-card">
       <img id="teamLogoPreview" class="team-logo" alt="Σήμα">
-      <div><label>Όνομα ομάδας</label><input id="teamName" value="Η Ομάδα μου"></div>
+      <div><label>Όνομα ομάδας</label><input id="teamName" value="Η Ομάδα μου">
+      <label for="coachNameV812">Προπονητής ομάδας</label>
+      <input id="coachNameV812" type="text" placeholder="Όνομα προπονητή" /></div>
     </div>
     <label class="upload-box">Σήμα ομάδας<input id="teamLogo" type="file" accept="image/*"></label>
     <label>Σύστημα</label>
@@ -75,7 +77,6 @@
       <div class="backup-v751-grid">
         <button id="saveNowV752" type="button">Αποθήκευση τώρα</button>
         <button id="backupAllV751" type="button">Backup όλων</button>
-    <button id="openTransferV81S" type="button">Αποστολή / Μεταφορά δεδομένων</button>
     <button id="openTransferV811" type="button">Αποστολή / Μεταφορά δεδομένων</button>
         <label class="restore-v751-label">Restore
           <input id="restoreAllV751" type="file" accept="application/json" />

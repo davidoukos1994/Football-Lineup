@@ -2304,3 +2304,154 @@ load();render();
  function init(){cleanDefaults();q("openTransferV811")?.addEventListener("click",openTransfer);q("openTransferV81S")?.addEventListener("click",openTransfer);q("shareBackupV811")?.addEventListener("click",share);q("downloadBackupV811")?.addEventListener("click",download);q("restoreTransferV811")?.addEventListener("change",restore);q("shareBackupV81S")?.addEventListener("click",share);q("downloadBackupV81S")?.addEventListener("click",download);q("restoreTransferV81S")?.addEventListener("change",restore);q("deleteProfileV811")?.addEventListener("click",delProfile);q("clearDashboardV811")?.addEventListener("click",clearDash);clickable();setInterval(clickable,1000)}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
+
+
+/* ===== v8.1.2 default roster + attendance + coach ===== */
+(function(){
+  const DEFAULT_PLAYERS_V812 = ["Μπαρσακης", "Στατε", "Γεωργαντοπουλος", "Οικονόμου", "Οτσκα", "Κωνσταντινακης", "Σαραπης", "Μπαρδης", "Τσαμουρας", "Χαμης", "Περαι", "Σκουμπρης", "Τανισκιδης", "Ραβανος", "Τογιας", "Λαλζι", "Βασιλείου", "Στυλιαρας", "Χαραλαμπους", "Λεμονης", "Μαγκλαρας", "Χατζηβασιλειου", "Μουτσιος", "Θαλασσινος", "Τζαχολι"];
+  const ROSTER_KEY = "footballCoachV74Roster";
+  const ATT_KEY = "footballCoachV73Attendance";
+  const PROFILES_KEY = "footballCoachV81Profiles";
+  const COACH_KEY = "footballCoachV812Coach";
+  const SEED_KEY = "footballCoachV812PlayersSeeded";
+
+  function q(id) { return document.getElementById(id); }
+  function safeParse(text, fallback) { try { return JSON.parse(text); } catch(e) { return fallback; } }
+  function load(key, fallback) { return safeParse(localStorage.getItem(key) || "", fallback); }
+  function save(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch(e) {}
+  }
+  function norm(name) { return String(name || "").trim().toLowerCase(); }
+
+  function todayMonthKey() {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+  }
+
+  function seedRosterAndAttendance() {
+    const rosterData = load(ROSTER_KEY, {roster:[], squad:[]});
+    rosterData.roster = Array.isArray(rosterData.roster) ? rosterData.roster : [];
+    rosterData.squad = Array.isArray(rosterData.squad) ? rosterData.squad : [];
+
+    const profilesData = load(PROFILES_KEY, {profiles:{}});
+    profilesData.profiles = profilesData.profiles || {};
+
+    const existing = new Set(rosterData.roster.map(p => norm(p.name)));
+    let added = 0;
+
+    DEFAULT_PLAYERS_V812.forEach((name, index) => {
+      if (existing.has(norm(name))) return;
+
+      const id = Date.now() + index + Math.floor(Math.random() * 100000);
+      const player = {
+        id,
+        name,
+        number: "",
+        positions: "",
+        foot: "",
+        minutes: 0,
+        goals: 0,
+        yellow: 0,
+        red: 0
+      };
+
+      rosterData.roster.push(player);
+      profilesData.profiles[String(id)] = {
+        id: String(id),
+        name,
+        number: "",
+        positions: "",
+        foot: "",
+        birth: "",
+        phone: "",
+        notes: "",
+        photo: "",
+        injuries: []
+      };
+      existing.add(norm(name));
+      added++;
+    });
+
+    save(ROSTER_KEY, rosterData);
+    save(PROFILES_KEY, profilesData);
+
+    const attendance = load(ATT_KEY, {});
+    const key = todayMonthKey();
+    if (!attendance[key]) attendance[key] = {players: [], data: {}};
+    attendance[key].players = Array.isArray(attendance[key].players) ? attendance[key].players : [];
+    DEFAULT_PLAYERS_V812.forEach(name => {
+      if (!attendance[key].players.includes(name)) attendance[key].players.push(name);
+    });
+    save(ATT_KEY, attendance);
+
+    localStorage.setItem(SEED_KEY, "1");
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch(e) {}
+
+    try { if (typeof renderRosterV74 === "function") renderRosterV74(); } catch(e) {}
+  }
+
+  function removeDuplicateTransferButtons() {
+    const buttons = Array.from(document.querySelectorAll("#openTransferV811, #openTransferV81S"));
+    if (buttons.length <= 1) return;
+    let kept = false;
+    buttons.forEach(btn => {
+      if (!kept && btn.id === "openTransferV811") { kept = true; return; }
+      if (!kept && btn.id === "openTransferV81S") { btn.id = "openTransferV811"; btn.textContent = "Αποστολή / Μεταφορά δεδομένων"; kept = true; return; }
+      btn.remove();
+    });
+  }
+
+  function loadCoach() {
+    const value = localStorage.getItem(COACH_KEY) || "";
+    if (q("coachNameV812")) q("coachNameV812").value = value;
+    updateCoachDisplay(value);
+  }
+
+  function saveCoach() {
+    const value = q("coachNameV812")?.value || "";
+    localStorage.setItem(COACH_KEY, value);
+    updateCoachDisplay(value);
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch(e) {}
+  }
+
+  function updateCoachDisplay(value) {
+    let box = document.getElementById("coachDisplayV812");
+    const title = document.querySelector("main h1, .app-title, h1");
+    if (!box && title) {
+      box = document.createElement("div");
+      box.id = "coachDisplayV812";
+      box.className = "coach-display-v812";
+      title.insertAdjacentElement("afterend", box);
+    }
+    if (box) box.textContent = value ? "Προπονητής: " + value : "";
+  }
+
+  function ensureFootBothOptions() {
+    document.querySelectorAll("select").forEach(sel => {
+      const txt = sel.textContent || "";
+      if ((txt.includes("Δεξ") || txt.includes("Αρισ")) && !Array.from(sel.options).some(o => o.value === "both")) {
+        const opt = document.createElement("option");
+        opt.value = "both";
+        opt.textContent = "Και τα δύο";
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  function init() {
+    seedRosterAndAttendance();
+    removeDuplicateTransferButtons();
+    loadCoach();
+    q("coachNameV812")?.addEventListener("input", saveCoach);
+    q("coachNameV812")?.addEventListener("change", saveCoach);
+    ensureFootBothOptions();
+    setInterval(() => {
+      removeDuplicateTransferButtons();
+      ensureFootBothOptions();
+    }, 1200);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();

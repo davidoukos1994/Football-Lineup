@@ -627,3 +627,12 @@
 .dashboard-actions-v811{display:grid;grid-template-columns:1fr;margin:10px 0}
 .dashboard-actions-v811 button,#deleteProfileV811{background:#dc2626}
 @media(max-width:820px){.transfer-actions-v811{grid-template-columns:1fr}}
+
+
+/* v8.1.2 coach + default roster */
+.coach-display-v812 {
+  margin: 4px auto 8px;
+  text-align: center;
+  font-weight: 800;
+  color: #475569;
+}
