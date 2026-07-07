@@ -2762,3 +2762,255 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v8.1.5 force roster + attendance alphabetical sync ===== */
+(function(){
+  const REAL_PLAYERS = ["Μπαρσακης", "Στατε", "Γεωργαντοπουλος", "Οικονόμου", "Οτσκα", "Κωνσταντινακης", "Σαραπης", "Μπαρδης", "Τσαμουρας", "Χαμης", "Περαι", "Σκουμπρης", "Τανισκιδης", "Ραβανος", "Τογιας", "Λαλζι", "Βασιλείου", "Στυλιαρας", "Χαραλαμπους", "Λεμονης", "Μαγκλαρας", "Χατζηβασιλειου", "Μουτσιος", "Θαλασσινος", "Τζαχολι"];
+  const ROSTER_KEY = "footballCoachV74Roster";
+  const ATT_KEY = "footballCoachV73Attendance";
+  const PROFILES_KEY = "footballCoachV81Profiles";
+  const HISTORY_KEY = "footballCoachV73History";
+  const ROBUST_KEY = "footballCoachV751RobustState";
+
+  function cleanText(s) {
+    return String(s || "")
+      .trim()
+      .toLocaleLowerCase("el-GR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function alphaNames(a, b) {
+    return cleanText(a).localeCompare(cleanText(b), "el", { sensitivity: "base", numeric: true });
+  }
+
+  function alphaPlayers(a, b) {
+    return alphaNames(a && a.name ? a.name : a, b && b.name ? b.name : b);
+  }
+
+  function isDefaultPlayer(name) {
+    const s = cleanText(name);
+    return /^παικτης\s*\d+$/.test(s);
+  }
+
+  function load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || ""); } catch(e) { return fallback; }
+  }
+
+  function save(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  const SORTED_NAMES = REAL_PLAYERS.slice().sort(alphaNames);
+  const SORTED_SET = new Set(SORTED_NAMES);
+
+  function buildCleanRoster() {
+    const old = load(ROSTER_KEY, { roster: [], squad: [] });
+    const oldRoster = Array.isArray(old.roster) ? old.roster : [];
+    const byName = new Map();
+
+    oldRoster.forEach(p => {
+      if (!p || !p.name || isDefaultPlayer(p.name)) return;
+      const key = cleanText(p.name);
+      if (!byName.has(key)) byName.set(key, p);
+    });
+
+    const roster = SORTED_NAMES.map((name, index) => {
+      const oldPlayer = byName.get(cleanText(name)) || {};
+      return {
+        id: oldPlayer.id || (Date.now() + index + Math.floor(Math.random() * 100000)),
+        name,
+        number: oldPlayer.number || "",
+        positions: oldPlayer.positions || "",
+        foot: oldPlayer.foot || "",
+        minutes: Number(oldPlayer.minutes || 0),
+        goals: Number(oldPlayer.goals || 0),
+        yellow: Number(oldPlayer.yellow || 0),
+        red: Number(oldPlayer.red || 0)
+      };
+    }).sort(alphaPlayers);
+
+    const rosterById = new Map(roster.map(p => [String(p.id), p]));
+    let squad = Array.isArray(old.squad) ? old.squad.filter(id => rosterById.has(String(id))) : [];
+    squad = squad.sort((a,b) => alphaPlayers(rosterById.get(String(a)), rosterById.get(String(b))));
+
+    save(ROSTER_KEY, { roster, squad });
+    return { roster, squad };
+  }
+
+  function syncAttendanceFromRoster(roster) {
+    const attendance = load(ATT_KEY, {});
+    const rosterNames = roster.map(p => p.name).sort(alphaNames);
+    const allowed = new Set(rosterNames);
+
+    Object.keys(attendance).forEach(month => {
+      const oldMonth = attendance[month] || {};
+      const oldData = oldMonth.data || {};
+      const newData = {};
+
+      Object.keys(oldData).forEach(cellKey => {
+        const parts = cellKey.split("|");
+        const name = parts[0];
+        const day = parts.slice(1).join("|");
+        if (allowed.has(name) && day) newData[name + "|" + day] = oldData[cellKey];
+      });
+
+      attendance[month] = {
+        players: rosterNames.slice(),
+        data: newData
+      };
+    });
+
+    const now = new Date();
+    const current = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    if (!attendance[current]) attendance[current] = { players: rosterNames.slice(), data: {} };
+    attendance[current].players = rosterNames.slice();
+
+    save(ATT_KEY, attendance);
+  }
+
+  function syncProfiles(roster) {
+    const old = load(PROFILES_KEY, { profiles: {} });
+    const oldByName = new Map();
+
+    Object.values(old.profiles || {}).forEach(p => {
+      if (!p || !p.name || isDefaultPlayer(p.name)) return;
+      if (!oldByName.has(cleanText(p.name))) oldByName.set(cleanText(p.name), p);
+    });
+
+    const profiles = {};
+    roster.sort(alphaPlayers).forEach(rp => {
+      const oldP = oldByName.get(cleanText(rp.name)) || {};
+      profiles[String(rp.id)] = {
+        id: String(rp.id),
+        name: rp.name,
+        number: oldP.number || rp.number || "",
+        positions: oldP.positions || rp.positions || "",
+        foot: oldP.foot || rp.foot || "",
+        birth: oldP.birth || "",
+        phone: oldP.phone || "",
+        notes: oldP.notes || "",
+        photo: oldP.photo || "",
+        injuries: Array.isArray(oldP.injuries) ? oldP.injuries : []
+      };
+    });
+
+    save(PROFILES_KEY, { profiles });
+  }
+
+  function cleanHistory() {
+    const h = load(HISTORY_KEY, { players: {}, matches: [] });
+    const cleanPlayers = {};
+
+    Object.values(h.players || {}).forEach(p => {
+      if (!p || !p.name || isDefaultPlayer(p.name)) return;
+      if (!SORTED_SET.has(p.name)) return;
+      cleanPlayers[cleanText(p.name)] = p;
+    });
+
+    save(HISTORY_KEY, {
+      players: cleanPlayers,
+      matches: Array.isArray(h.matches) ? h.matches : []
+    });
+  }
+
+  function cleanCurrentLineup() {
+    try {
+      if (typeof players !== "undefined" && Array.isArray(players)) {
+        players.forEach((p) => {
+          if (p && isDefaultPlayer(p.name)) {
+            p.name = "";
+            p.number = "";
+          }
+        });
+      }
+      if (typeof subs !== "undefined" && Array.isArray(subs)) {
+        for (let i = subs.length - 1; i >= 0; i--) {
+          if (isDefaultPlayer(subs[i])) subs.splice(i, 1);
+        }
+      }
+    } catch(e) {}
+  }
+
+  function syncRobust(rosterData) {
+    const robust = load(ROBUST_KEY, null);
+    if (!robust) return;
+
+    robust.localStorage = robust.localStorage || {};
+    robust.localStorage[ROSTER_KEY] = JSON.stringify(rosterData);
+    robust.localStorage[ATT_KEY] = localStorage.getItem(ATT_KEY);
+    robust.localStorage[PROFILES_KEY] = localStorage.getItem(PROFILES_KEY);
+    robust.localStorage[HISTORY_KEY] = localStorage.getItem(HISTORY_KEY);
+
+    robust.players = Array.isArray(robust.players)
+      ? robust.players.filter(p => p && p.name && !isDefaultPlayer(p.name)).sort(alphaPlayers)
+      : [];
+    robust.subs = Array.isArray(robust.subs)
+      ? robust.subs.filter(s => s && !isDefaultPlayer(s)).sort(alphaNames)
+      : [];
+
+    localStorage.setItem(ROBUST_KEY, JSON.stringify(robust));
+  }
+
+  function forceSyncAll() {
+    const rosterData = buildCleanRoster();
+    syncAttendanceFromRoster(rosterData.roster);
+    syncProfiles(rosterData.roster);
+    cleanHistory();
+    cleanCurrentLineup();
+    syncRobust(rosterData);
+
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch(e) {}
+  }
+
+  function rerenderAll() {
+    try { if (typeof renderRosterV74 === "function") renderRosterV74(); } catch(e) {}
+    try { if (typeof renderAttendanceV73 === "function") renderAttendanceV73(false); } catch(e) {}
+    try { if (typeof renderProfilesList === "function") renderProfilesList(); } catch(e) {}
+    try { if (typeof renderDashboard === "function") renderDashboard(); } catch(e) {}
+    try { if (typeof render === "function") render(); } catch(e) {}
+  }
+
+  function patchAttendanceButtons() {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    buttons.forEach(btn => {
+      const text = (btn.textContent || "").trim();
+      if (text.includes("Παίκτες από 11άδα") && !btn.dataset.v815Fixed) {
+        btn.dataset.v815Fixed = "1";
+        btn.addEventListener("click", function(e) {
+          setTimeout(function() {
+            forceSyncAll();
+            rerenderAll();
+          }, 100);
+        }, true);
+      }
+    });
+  }
+
+  function patchOpenAttendance() {
+    const btn = document.getElementById("openAttendanceV73");
+    if (btn && !btn.dataset.v815Fixed) {
+      btn.dataset.v815Fixed = "1";
+      btn.addEventListener("click", function() {
+        forceSyncAll();
+        setTimeout(rerenderAll, 150);
+      }, true);
+    }
+  }
+
+  function init() {
+    forceSyncAll();
+    setTimeout(rerenderAll, 300);
+    patchAttendanceButtons();
+    patchOpenAttendance();
+
+    setInterval(function() {
+      patchAttendanceButtons();
+      patchOpenAttendance();
+    }, 1200);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
