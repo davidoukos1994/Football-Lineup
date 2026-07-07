@@ -2455,3 +2455,146 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v8.1.3 clean duplicate/default players everywhere ===== */
+(function(){
+  const REAL_PLAYERS = ["Μπαρσακης", "Στατε", "Γεωργαντοπουλος", "Οικονόμου", "Οτσκα", "Κωνσταντινακης", "Σαραπης", "Μπαρδης", "Τσαμουρας", "Χαμης", "Περαι", "Σκουμπρης", "Τανισκιδης", "Ραβανος", "Τογιας", "Λαλζι", "Βασιλείου", "Στυλιαρας", "Χαραλαμπους", "Λεμονης", "Μαγκλαρας", "Χατζηβασιλειου", "Μουτσιος", "Θαλασσινος", "Τζαχολι"];
+  const ROSTER_KEY = "footballCoachV74Roster";
+  const ATT_KEY = "footballCoachV73Attendance";
+  const PROFILES_KEY = "footballCoachV81Profiles";
+  const HISTORY_KEY = "footballCoachV73History";
+  const ROBUST_KEY = "footballCoachV751RobustState";
+
+  function norm(name) {
+    return String(name || "").trim().toLowerCase()
+      .replace(/ά/g,"α").replace(/έ/g,"ε").replace(/ή/g,"η").replace(/[ίϊΐ]/g,"ι")
+      .replace(/ό/g,"ο").replace(/[ύϋΰ]/g,"υ").replace(/ώ/g,"ω");
+  }
+
+  function isDefaultPlayer(name) {
+    const s = norm(name);
+    return /^παικτης\s*\d+$/.test(s) || /^παίκτης\s*\d+$/i.test(String(name || "").trim());
+  }
+
+  function load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || ""); } catch(e) { return fallback; }
+  }
+
+  function save(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function cleanAll() {
+    const oldRoster = load(ROSTER_KEY, {roster:[], squad:[]});
+    const oldList = Array.isArray(oldRoster.roster) ? oldRoster.roster : [];
+    const byName = new Map();
+
+    oldList.forEach(p => {
+      if (p && p.name && !isDefaultPlayer(p.name) && !byName.has(norm(p.name))) byName.set(norm(p.name), p);
+    });
+
+    const roster = REAL_PLAYERS.map((name, index) => {
+      const old = byName.get(norm(name)) || {};
+      return {
+        id: old.id || (Date.now() + index + Math.floor(Math.random() * 10000)),
+        name,
+        number: old.number || "",
+        positions: old.positions || "",
+        foot: old.foot || "",
+        minutes: Number(old.minutes || 0),
+        goals: Number(old.goals || 0),
+        yellow: Number(old.yellow || 0),
+        red: Number(old.red || 0)
+      };
+    });
+
+    save(ROSTER_KEY, {roster, squad: []});
+
+    const allowed = new Set(REAL_PLAYERS);
+    const attendance = load(ATT_KEY, {});
+    Object.keys(attendance).forEach(month => {
+      const m = attendance[month];
+      if (!m) return;
+      m.players = REAL_PLAYERS.slice();
+      const newData = {};
+      Object.keys(m.data || {}).forEach(k => {
+        const name = k.split("|")[0];
+        if (allowed.has(name)) newData[k] = m.data[k];
+      });
+      m.data = newData;
+    });
+    const d = new Date();
+    const cur = d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+    if (!attendance[cur]) attendance[cur] = {players: REAL_PLAYERS.slice(), data: {}};
+    attendance[cur].players = REAL_PLAYERS.slice();
+    save(ATT_KEY, attendance);
+
+    const oldProfiles = load(PROFILES_KEY, {profiles:{}});
+    const oldProfByName = new Map();
+    Object.values(oldProfiles.profiles || {}).forEach(p => {
+      if (p && p.name && !isDefaultPlayer(p.name) && !oldProfByName.has(norm(p.name))) oldProfByName.set(norm(p.name), p);
+    });
+    const profiles = {};
+    roster.forEach(rp => {
+      const old = oldProfByName.get(norm(rp.name)) || {};
+      profiles[String(rp.id)] = {
+        id: String(rp.id),
+        name: rp.name,
+        number: old.number || rp.number || "",
+        positions: old.positions || rp.positions || "",
+        foot: old.foot || rp.foot || "",
+        birth: old.birth || "",
+        phone: old.phone || "",
+        notes: old.notes || "",
+        photo: old.photo || "",
+        injuries: Array.isArray(old.injuries) ? old.injuries : []
+      };
+    });
+    save(PROFILES_KEY, {profiles});
+
+    const history = load(HISTORY_KEY, {players:{}, matches:[]});
+    const newHistPlayers = {};
+    Object.values(history.players || {}).forEach(p => {
+      if (p && p.name && !isDefaultPlayer(p.name) && REAL_PLAYERS.map(norm).includes(norm(p.name))) newHistPlayers[norm(p.name)] = p;
+    });
+    save(HISTORY_KEY, {players: newHistPlayers, matches: Array.isArray(history.matches) ? history.matches : []});
+
+    try {
+      const robust = load(ROBUST_KEY, null);
+      if (robust) {
+        robust.players = [];
+        robust.subs = [];
+        robust.localStorage = robust.localStorage || {};
+        robust.localStorage[ROSTER_KEY] = JSON.stringify({roster, squad: []});
+        robust.localStorage[ATT_KEY] = localStorage.getItem(ATT_KEY);
+        robust.localStorage[PROFILES_KEY] = localStorage.getItem(PROFILES_KEY);
+        robust.localStorage[HISTORY_KEY] = localStorage.getItem(HISTORY_KEY);
+        localStorage.setItem(ROBUST_KEY, JSON.stringify(robust));
+      }
+    } catch(e) {}
+
+    try {
+      if (typeof players !== "undefined" && Array.isArray(players)) {
+        players.forEach((p, i) => {
+          if (p && isDefaultPlayer(p.name)) { p.name = ""; p.number = ""; }
+        });
+      }
+      if (typeof subs !== "undefined" && Array.isArray(subs)) {
+        for (let i=subs.length-1; i>=0; i--) if (isDefaultPlayer(subs[i])) subs.splice(i,1);
+      }
+      if (typeof render === "function") render();
+      else {
+        if (typeof renderPitch === "function") renderPitch();
+        if (typeof renderPlayerInputs === "function") renderPlayerInputs();
+        if (typeof renderSubs === "function") renderSubs();
+      }
+    } catch(e) {}
+
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch(e) {}
+    try { if (typeof renderRosterV74 === "function") renderRosterV74(); } catch(e) {}
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cleanAll);
+  else cleanAll();
+})();
