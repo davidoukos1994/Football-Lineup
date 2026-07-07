@@ -2598,3 +2598,167 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", cleanAll);
   else cleanAll();
 })();
+
+
+/* ===== v8.1.4 alphabetical players everywhere ===== */
+(function () {
+  const ROSTER_KEY = "footballCoachV74Roster";
+  const ATT_KEY = "footballCoachV73Attendance";
+  const PROFILES_KEY = "footballCoachV81Profiles";
+  const ROBUST_KEY = "footballCoachV751RobustState";
+
+  function normalizeGreek(value) {
+    return String(value || "")
+      .trim()
+      .toLocaleLowerCase("el-GR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function byGreekName(a, b) {
+    return normalizeGreek(a?.name || a).localeCompare(normalizeGreek(b?.name || b), "el", {
+      sensitivity: "base",
+      numeric: true
+    });
+  }
+
+  function load(key, fallback) {
+    try {
+      return JSON.parse(localStorage.getItem(key) || "");
+    } catch (err) {
+      return fallback;
+    }
+  }
+
+  function save(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function sortRoster() {
+    const data = load(ROSTER_KEY, { roster: [], squad: [] });
+    data.roster = Array.isArray(data.roster) ? data.roster : [];
+    data.squad = Array.isArray(data.squad) ? data.squad : [];
+
+    data.roster.sort(byGreekName);
+
+    // Keep squad order alphabetic too, based on roster names.
+    const rosterById = new Map(data.roster.map((p) => [String(p.id), p]));
+    data.squad = data.squad
+      .filter((id) => rosterById.has(String(id)))
+      .sort((a, b) => byGreekName(rosterById.get(String(a)), rosterById.get(String(b))));
+
+    save(ROSTER_KEY, data);
+    return data;
+  }
+
+  function sortAttendance() {
+    const all = load(ATT_KEY, {});
+    Object.keys(all || {}).forEach((month) => {
+      if (!all[month]) return;
+      all[month].players = Array.isArray(all[month].players) ? all[month].players : [];
+      all[month].players.sort(byGreekName);
+    });
+    save(ATT_KEY, all);
+  }
+
+  function sortProfiles() {
+    const data = load(PROFILES_KEY, { profiles: {} });
+    const entries = Object.entries(data.profiles || {}).sort((a, b) => byGreekName(a[1], b[1]));
+    data.profiles = Object.fromEntries(entries);
+    save(PROFILES_KEY, data);
+  }
+
+  function sortRobust() {
+    const data = load(ROBUST_KEY, null);
+    if (!data) return;
+
+    if (Array.isArray(data.players)) data.players.sort(byGreekName);
+    if (Array.isArray(data.subs)) data.subs.sort(byGreekName);
+
+    data.localStorage = data.localStorage || {};
+    data.localStorage[ROSTER_KEY] = localStorage.getItem(ROSTER_KEY);
+    data.localStorage[ATT_KEY] = localStorage.getItem(ATT_KEY);
+    data.localStorage[PROFILES_KEY] = localStorage.getItem(PROFILES_KEY);
+
+    localStorage.setItem(ROBUST_KEY, JSON.stringify(data));
+  }
+
+  function sortAll() {
+    sortRoster();
+    sortAttendance();
+    sortProfiles();
+    sortRobust();
+
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (err) {}
+  }
+
+  function wrapFunction(name, after) {
+    const oldFn = window[name];
+    if (typeof oldFn !== "function" || oldFn.__alphabeticalWrapped) return;
+
+    const wrapped = function () {
+      const result = oldFn.apply(this, arguments);
+      setTimeout(after, 50);
+      return result;
+    };
+    wrapped.__alphabeticalWrapped = true;
+    window[name] = wrapped;
+  }
+
+  function patchRenderers() {
+    wrapFunction("renderRosterV74", sortAll);
+    wrapFunction("renderAttendanceV73", sortAttendance);
+    wrapFunction("renderProfilesList", sortProfiles);
+    wrapFunction("renderDashboard", sortAll);
+  }
+
+  function observeRosterChanges() {
+    document.addEventListener("input", function (event) {
+      if (
+        event.target &&
+        (
+          event.target.closest("#rosterTableV74") ||
+          event.target.closest("#attendanceTableV73") ||
+          event.target.closest("#playerProfilesDialogV81")
+        )
+      ) {
+        clearTimeout(window.__alphabeticalSaveTimer);
+        window.__alphabeticalSaveTimer = setTimeout(function () {
+          sortAll();
+          try { if (typeof renderRosterV74 === "function") renderRosterV74(); } catch (err) {}
+        }, 450);
+      }
+    }, true);
+
+    document.addEventListener("change", function (event) {
+      if (
+        event.target &&
+        (
+          event.target.closest("#rosterTableV74") ||
+          event.target.closest("#attendanceTableV73") ||
+          event.target.closest("#playerProfilesDialogV81")
+        )
+      ) {
+        setTimeout(function () {
+          sortAll();
+          try { if (typeof renderRosterV74 === "function") renderRosterV74(); } catch (err) {}
+        }, 200);
+      }
+    }, true);
+  }
+
+  function init() {
+    sortAll();
+    patchRenderers();
+    observeRosterChanges();
+
+    setTimeout(function () {
+      try { if (typeof renderRosterV74 === "function") renderRosterV74(); } catch (err) {}
+    }, 400);
+
+    setInterval(patchRenderers, 1500);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
