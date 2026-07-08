@@ -3016,767 +3016,225 @@ load();render();
 })();
 
 
-/* ===== v8.1.6 roster player selector for pitch popup ===== */
+
+/* removed old unstable roster selector */
+
+/* removed old unstable roster selector */
+
+/* removed old unstable roster selector */
+
+/* removed old unstable roster selector */
+
+
+/* ===== v8.2.0 stable roster select + custom autocomplete + full name ===== */
 (function () {
   const ROSTER_KEY = "footballCoachV74Roster";
+  let activeIndex = null;
+  let lastRenderedSelectSignature = "";
 
   function q(id) { return document.getElementById(id); }
 
   function load(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key) || ""); }
-    catch (err) { return fallback; }
+    try { return JSON.parse(localStorage.getItem(key) || ""); } catch (e) { return fallback; }
   }
 
   function saveNow() {
-    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (err) {}
-    try { if (typeof save === "function") save(); } catch (err) {}
+    try { if (typeof save === "function") save(); } catch (e) {}
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (e) {}
   }
 
-  function clean(value) {
-    return String(value || "")
-      .trim()
-      .toLocaleLowerCase("el-GR")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
+  function clean(s) {
+    return String(s || "").trim().toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   }
 
-  function sortPlayers(a, b) {
-    return clean(a.name).localeCompare(clean(b.name), "el", { sensitivity: "base", numeric: true });
-  }
-
-  function rosterPlayers() {
+  function roster() {
     const data = load(ROSTER_KEY, { roster: [] });
     return (Array.isArray(data.roster) ? data.roster : [])
-      .filter((p) => p && p.name)
-      .sort(sortPlayers);
+      .filter(p => p && p.name)
+      .sort((a,b) => clean(a.name).localeCompare(clean(b.name), "el", { sensitivity:"base", numeric:true }));
   }
 
-  function normalizePositions(pos) {
-    return String(pos || "")
-      .toUpperCase()
-      .replace(/[./|]/g, ",")
-      .split(/[,\s]+/)
-      .map((x) => x.trim())
-      .filter(Boolean);
+  function playerById(id) {
+    return roster().find(p => String(p.id) === String(id));
   }
 
-  function playerMatchesPosition(player, position) {
-    if (!position) return false;
-    const p = String(position || "").toUpperCase().trim();
-    const positions = normalizePositions(player.positions);
-    return positions.includes(p);
+  function playerByName(name) {
+    return roster().find(p => clean(p.name) === clean(name));
   }
 
-  function detectCurrentPosition() {
-    let pos = "";
-
-    try {
-      if (typeof editingPlayerIndex !== "undefined" && typeof players !== "undefined" && players[editingPlayerIndex]) {
-        pos = players[editingPlayerIndex].pos || players[editingPlayerIndex].position || "";
-      }
-    } catch (err) {}
-
-    if (!pos) {
-      const visibleText = document.querySelector("#quickPlayerDialogV72, dialog[open]")?.textContent || "";
-      const match = visibleText.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/);
-      if (match) pos = match[1];
-    }
-
-    return String(pos || "").toUpperCase();
-  }
-
-  function ensureSuggestionBox(select) {
-    if (!select) return null;
-    let box = document.getElementById("positionSuggestionV816");
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "positionSuggestionV816";
-      box.className = "position-suggestion-v816";
-      select.insertAdjacentElement("afterend", box);
-    }
-    return box;
-  }
-
-  function fillSelect() {
-    const select = q("assignFromSquadV74") || q("quickPlayerSelect") || document.querySelector('select[id*="Squad"], select[id*="Player"]');
-    if (!select) return;
-
-    const position = detectCurrentPosition();
-    const all = rosterPlayers();
-
-    const recommended = position ? all.filter((p) => playerMatchesPosition(p, position)) : [];
-    const rest = all.filter((p) => !recommended.some((r) => String(r.id) === String(p.id)));
-
-    let html = '<option value="">-- διάλεξε παίκτη --</option>';
-
-    if (recommended.length) {
-      html += `<optgroup label="Προτεινόμενοι για ${position}">`;
-      html += recommended.map((p) => `<option value="${p.id}">${p.name}${p.positions ? " • " + p.positions : ""}</option>`).join("");
-      html += "</optgroup>";
-    }
-
-    html += '<optgroup label="Όλοι οι παίκτες">';
-    html += rest.map((p) => `<option value="${p.id}">${p.name}${p.positions ? " • " + p.positions : ""}</option>`).join("");
-    html += "</optgroup>";
-
-    select.innerHTML = html;
-
-    const box = ensureSuggestionBox(select);
-    if (box) {
-      if (position && recommended.length) box.textContent = `Προτείνονται πρώτα οι παίκτες που έχουν θέση ${position}. Μπορείς όμως να επιλέξεις οποιονδήποτε.`;
-      else if (position) box.textContent = `Δεν βρέθηκαν παίκτες με θέση ${position}. Μπορείς να επιλέξεις οποιονδήποτε από το ρόστερ.`;
-      else box.textContent = "Επιλογή παίκτη από το ρόστερ.";
-    }
-  }
-
-  function applySelectedPlayer(playerId) {
-    const player = rosterPlayers().find((p) => String(p.id) === String(playerId));
-    if (!player) return;
-
-    const nameInput =
-      q("quickPlayerNameV72") ||
-      q("quickPlayerName") ||
-      document.querySelector('input[id*="PlayerName"], input[id*="Name"]');
-
-    const numberInput =
-      q("quickPlayerNumberV72") ||
-      q("quickPlayerNumber") ||
-      document.querySelector('input[id*="PlayerNumber"], input[id*="Number"]');
-
-    if (nameInput) {
-      nameInput.value = player.name || "";
-      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
-    if (numberInput) {
-      numberInput.value = player.number || "";
-      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
-      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
-    // If known app globals exist, update selected player immediately too.
-    try {
-      if (typeof editingPlayerIndex !== "undefined" && typeof players !== "undefined" && players[editingPlayerIndex]) {
-        players[editingPlayerIndex].name = player.name || "";
-        players[editingPlayerIndex].number = player.number || "";
-        if (typeof render === "function") render();
-      }
-    } catch (err) {}
-
-    saveNow();
-  }
-
-  function wireSelect() {
-    const select = q("assignFromSquadV74") || q("quickPlayerSelect") || document.querySelector('select[id*="Squad"], select[id*="Player"]');
-    if (!select || select.dataset.v816Ready === "1") return;
-
-    select.dataset.v816Ready = "1";
-
-    select.addEventListener("focus", fillSelect);
-    select.addEventListener("click", fillSelect);
-    select.addEventListener("mousedown", fillSelect);
-    select.addEventListener("touchstart", fillSelect);
-    select.addEventListener("change", function () {
-      applySelectedPlayer(select.value);
-    });
-  }
-
-  function patchPopupOpen() {
-    document.addEventListener("click", function (event) {
-      const playerEl = event.target.closest(".player, .player-token, .player-marker, [data-player-index]");
-      if (!playerEl) return;
-      setTimeout(function () {
-        fillSelect();
-        wireSelect();
-      }, 200);
-    }, true);
-  }
-
-  function init() {
-    wireSelect();
-    fillSelect();
-    patchPopupOpen();
-
-    setInterval(function () {
-      wireSelect();
-      const dialogOpen = document.querySelector("#quickPlayerDialogV72[open], dialog[open]");
-      if (dialogOpen) fillSelect();
-    }, 1000);
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
-})();
-
-
-/* ===== v8.1.7 selected roster player also updates left lineup list ===== */
-(function () {
-  const ROSTER_KEY = "footballCoachV74Roster";
-
-  function q(id) { return document.getElementById(id); }
-
-  function load(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key) || ""); }
-    catch (err) { return fallback; }
-  }
-
-  function saveNow() {
-    try { if (typeof save === "function") save(); } catch (err) {}
-    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (err) {}
-  }
-
-  function clean(value) {
-    return String(value || "")
-      .trim()
-      .toLocaleLowerCase("el-GR")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function rosterPlayers() {
-    const data = load(ROSTER_KEY, { roster: [] });
-    return (Array.isArray(data.roster) ? data.roster : [])
-      .filter((p) => p && p.name)
-      .sort((a, b) => clean(a.name).localeCompare(clean(b.name), "el", { sensitivity: "base", numeric: true }));
-  }
-
-  function getEditingIndex() {
+  function getIndex() {
+    if (activeIndex !== null && Number.isFinite(Number(activeIndex))) return Number(activeIndex);
     try {
       if (typeof editingPlayerIndex !== "undefined" && editingPlayerIndex !== null && editingPlayerIndex !== "") {
         const n = Number(editingPlayerIndex);
         if (Number.isFinite(n)) return n;
       }
-    } catch (err) {}
-
-    const dialog = q("quickPlayerDialogV72") || document.querySelector("dialog[open]");
-    const idx = dialog?.dataset?.playerIndex || dialog?.dataset?.index;
-    if (idx !== undefined && idx !== null && idx !== "") {
-      const n = Number(idx);
-      if (Number.isFinite(n)) return n;
-    }
-
+    } catch(e) {}
     return null;
   }
 
-  function updateGlobalPlayer(index, player) {
+  function getPosition(index) {
     try {
       if (index !== null && typeof players !== "undefined" && Array.isArray(players) && players[index]) {
-        players[index].name = player.name || "";
-        players[index].number = player.number || "";
-        players[index].goals = Number(players[index].goals || 0);
-        players[index].yellow = Number(players[index].yellow || 0);
-        players[index].red = Number(players[index].red || 0);
-        players[index].minutes = Number(players[index].minutes || 0);
-        return true;
-      }
-    } catch (err) {}
-    return false;
-  }
-
-  function updateLeftInputs(index, player) {
-    if (index === null) return;
-
-    const possibleNameSelectors = [
-      `#playerName${index}`,
-      `#player-${index}-name`,
-      `#playerNameV72-${index}`,
-      `input[data-player-index="${index}"][data-field="name"]`,
-      `input[data-index="${index}"][data-field="name"]`
-    ];
-
-    const possibleNumberSelectors = [
-      `#playerNumber${index}`,
-      `#player-${index}-number`,
-      `#playerNumberV72-${index}`,
-      `input[data-player-index="${index}"][data-field="number"]`,
-      `input[data-index="${index}"][data-field="number"]`
-    ];
-
-    let nameInput = null;
-    let numberInput = null;
-
-    for (const selector of possibleNameSelectors) {
-      nameInput = document.querySelector(selector);
-      if (nameInput) break;
-    }
-
-    for (const selector of possibleNumberSelectors) {
-      numberInput = document.querySelector(selector);
-      if (numberInput) break;
-    }
-
-    // Fallback: find player rows in the left list by order.
-    if (!nameInput) {
-      const allNameInputs = Array.from(document.querySelectorAll(
-        'input[id*="player"][id*="Name"], input[name*="player"], input[placeholder*="Παίκτης"], input[placeholder*="παίκτης"]'
-      )).filter((el) => el.type !== "file" && el.offsetParent !== null);
-      nameInput = allNameInputs[index] || null;
-    }
-
-    if (!numberInput) {
-      const allNumberInputs = Array.from(document.querySelectorAll(
-        'input[id*="player"][id*="Number"], input[type="number"]'
-      )).filter((el) => el.offsetParent !== null);
-      // avoid goals/cards/minutes by preferring visible small fields near name input
-      if (nameInput) {
-        const row = nameInput.closest("tr, .player-row, .player-input-row, .lineup-row, div");
-        numberInput = row ? Array.from(row.querySelectorAll('input[type="number"], input')).find((el) => el !== nameInput && (el.value === "" || /^[0-9]+$/.test(String(el.value)))) : null;
-      }
-      if (!numberInput) numberInput = allNumberInputs[index] || null;
-    }
-
-    if (nameInput) {
-      nameInput.value = player.name || "";
-      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
-    if (numberInput) {
-      numberInput.value = player.number || "";
-      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
-      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  }
-
-  function updatePopupInputs(player) {
-    const nameInput =
-      q("quickPlayerNameV72") ||
-      q("quickPlayerName") ||
-      document.querySelector('input[id*="PlayerName"], input[id*="Name"]');
-
-    const numberInput =
-      q("quickPlayerNumberV72") ||
-      q("quickPlayerNumber") ||
-      document.querySelector('input[id*="PlayerNumber"], input[id*="Number"]');
-
-    if (nameInput) {
-      nameInput.value = player.name || "";
-      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
-    if (numberInput) {
-      numberInput.value = player.number || "";
-      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
-      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-  }
-
-  function applySelectedEverywhere(playerId) {
-    const player = rosterPlayers().find((p) => String(p.id) === String(playerId));
-    if (!player) return;
-
-    const index = getEditingIndex();
-
-    updatePopupInputs(player);
-    updateGlobalPlayer(index, player);
-
-    try {
-      if (typeof render === "function") render();
-      else {
-        if (typeof renderPitch === "function") renderPitch();
-        if (typeof renderPlayerInputs === "function") renderPlayerInputs();
-        if (typeof renderSubs === "function") renderSubs();
-      }
-    } catch (err) {}
-
-    // After render, update left inputs again because render may rebuild them.
-    setTimeout(function () {
-      updateLeftInputs(index, player);
-      saveNow();
-    }, 80);
-  }
-
-  function wireSelect() {
-    const select = q("assignFromSquadV74") || q("quickPlayerSelect") || document.querySelector('select[id*="Squad"], select[id*="Player"]');
-    if (!select || select.dataset.v817Ready === "1") return;
-
-    select.dataset.v817Ready = "1";
-
-    select.addEventListener("change", function () {
-      applySelectedEverywhere(select.value);
-    }, true);
-  }
-
-  function init() {
-    wireSelect();
-    setInterval(wireSelect, 800);
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
-})();
-
-
-/* ===== v8.1.8 force popup select to use full roster, not squad ===== */
-(function () {
-  const ROSTER_KEY = "footballCoachV74Roster";
-
-  function q(id) { return document.getElementById(id); }
-
-  function load(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key) || ""); }
-    catch (err) { return fallback; }
-  }
-
-  function clean(value) {
-    return String(value || "")
-      .trim()
-      .toLocaleLowerCase("el-GR")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function sortPlayers(a, b) {
-    return clean(a.name).localeCompare(clean(b.name), "el", { sensitivity: "base", numeric: true });
-  }
-
-  function rosterPlayers() {
-    const data = load(ROSTER_KEY, { roster: [] });
-    return (Array.isArray(data.roster) ? data.roster : [])
-      .filter((p) => p && p.name)
-      .sort(sortPlayers);
-  }
-
-  function positionsOf(player) {
-    return String(player.positions || "")
-      .toUpperCase()
-      .replace(/[./|]/g, ",")
-      .split(/[,\s]+/)
-      .map((x) => x.trim())
-      .filter(Boolean);
-  }
-
-  function currentPosition() {
-    try {
-      if (typeof editingPlayerIndex !== "undefined" && typeof players !== "undefined" && players[editingPlayerIndex]) {
-        return String(players[editingPlayerIndex].pos || players[editingPlayerIndex].position || "").toUpperCase();
-      }
-    } catch (err) {}
-
-    const openDialog = document.querySelector("dialog[open]");
-    const txt = openDialog?.textContent || "";
-    const m = txt.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/);
-    return m ? m[1] : "";
-  }
-
-  function getSelect() {
-    return q("assignFromSquadV74") ||
-      q("quickPlayerSelect") ||
-      document.querySelector('select[id*="Squad"], select[id*="Player"]');
-  }
-
-  function fixLabels(select) {
-    if (!select) return;
-
-    const dialog = select.closest("dialog") || document;
-    Array.from(dialog.querySelectorAll("label")).forEach((label) => {
-      if ((label.getAttribute("for") || "") === select.id || label.textContent.includes("αποστολή") || label.textContent.includes("παίκτη")) {
-        label.textContent = "Επιλογή από ρόστερ";
-      }
-    });
-
-    let help = q("rosterSelectHelpV818");
-    if (!help) {
-      help = document.createElement("div");
-      help.id = "rosterSelectHelpV818";
-      help.className = "roster-select-help-v818";
-      select.insertAdjacentElement("afterend", help);
-    }
-  }
-
-  function fillRosterSelect() {
-    const select = getSelect();
-    if (!select) return;
-
-    const all = rosterPlayers();
-    const pos = currentPosition();
-
-    const recommended = pos ? all.filter((p) => positionsOf(p).includes(pos)) : [];
-    const recommendedIds = new Set(recommended.map((p) => String(p.id)));
-    const others = all.filter((p) => !recommendedIds.has(String(p.id)));
-
-    let html = '<option value="">-- διάλεξε παίκτη από ρόστερ --</option>';
-
-    if (recommended.length) {
-      html += `<optgroup label="Προτεινόμενοι για ${pos}">`;
-      html += recommended.map((p) => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
-      html += "</optgroup>";
-    }
-
-    html += '<optgroup label="Όλο το ρόστερ">';
-    html += others.map((p) => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
-    html += "</optgroup>";
-
-    select.innerHTML = html;
-    fixLabels(select);
-
-    const help = q("rosterSelectHelpV818");
-    if (help) {
-      if (recommended.length) help.textContent = `Πρώτα εμφανίζονται όσοι έχουν δηλωμένη θέση ${pos}. Από κάτω υπάρχει όλο το ρόστερ.`;
-      else help.textContent = "Εμφανίζεται όλο το ρόστερ. Όταν συμπληρώσεις θέσεις στους παίκτες, θα εμφανίζονται προτεινόμενοι πρώτα.";
-    }
-  }
-
-  function init() {
-    document.addEventListener("click", function () {
-      setTimeout(fillRosterSelect, 150);
-    }, true);
-
-    document.addEventListener("focusin", function (event) {
-      if (event.target && event.target.tagName === "SELECT") {
-        setTimeout(fillRosterSelect, 50);
-      }
-    }, true);
-
-    setInterval(function () {
-      const select = getSelect();
-      if (select && document.querySelector("dialog[open]")) fillRosterSelect();
-    }, 700);
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
-})();
-
-
-/* ===== v8.1.9 stable roster select + autocomplete ===== */
-(function () {
-  const ROSTER_KEY = "footballCoachV74Roster";
-
-  function q(id) { return document.getElementById(id); }
-
-  function load(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key) || ""); }
-    catch (err) { return fallback; }
-  }
-
-  function saveNow() {
-    try { if (typeof save === "function") save(); } catch (err) {}
-    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (err) {}
-  }
-
-  function clean(value) {
-    return String(value || "")
-      .trim()
-      .toLocaleLowerCase("el-GR")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function rosterPlayers() {
-    const data = load(ROSTER_KEY, { roster: [] });
-    return (Array.isArray(data.roster) ? data.roster : [])
-      .filter((p) => p && p.name)
-      .sort((a, b) => clean(a.name).localeCompare(clean(b.name), "el", { sensitivity: "base", numeric: true }));
-  }
-
-  function rosterByName(name) {
-    const target = clean(name);
-    return rosterPlayers().find((p) => clean(p.name) === target);
-  }
-
-  function positionsOf(player) {
-    return String(player.positions || "")
-      .toUpperCase()
-      .replace(/[./|]/g, ",")
-      .split(/[,\s]+/)
-      .map((x) => x.trim())
-      .filter(Boolean);
-  }
-
-  function currentEditingIndexFromDialog() {
-    try {
-      if (typeof editingPlayerIndex !== "undefined" && editingPlayerIndex !== null && editingPlayerIndex !== "") {
-        const n = Number(editingPlayerIndex);
-        if (Number.isFinite(n)) return n;
-      }
-    } catch (err) {}
-
-    const dialog = document.querySelector("dialog[open]");
-    const fromDialog = dialog?.dataset?.playerIndex || dialog?.dataset?.index || dialog?.getAttribute("data-player-index") || dialog?.getAttribute("data-index");
-    if (fromDialog !== undefined && fromDialog !== null && fromDialog !== "") {
-      const n = Number(fromDialog);
-      if (Number.isFinite(n)) return n;
-    }
-
-    return window.__lastClickedPlayerIndexV819 ?? null;
-  }
-
-  function detectPosition(index) {
-    try {
-      if (index !== null && typeof players !== "undefined" && players[index]) {
         return String(players[index].pos || players[index].position || "").toUpperCase();
       }
-    } catch (err) {}
+    } catch(e) {}
+    return "";
+  }
 
-    const openDialog = document.querySelector("dialog[open]");
-    const txt = openDialog?.textContent || "";
-    const m = txt.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/);
-    return m ? m[1] : "";
+  function positions(p) {
+    return String(p.positions || "").toUpperCase().replace(/[./|]/g,",").split(/[,\s]+/).map(x=>x.trim()).filter(Boolean);
   }
 
   function getPopupSelect() {
-    return q("assignFromSquadV74") ||
-      q("quickPlayerSelect") ||
-      document.querySelector('dialog[open] select[id*="Squad"], dialog[open] select[id*="Player"], dialog[open] select');
+    const dialog = document.querySelector("dialog[open]");
+    if (!dialog) return null;
+    return q("assignFromSquadV74") || q("quickPlayerSelect") || dialog.querySelector("select");
   }
 
-  function setDialogLabels(select) {
-    if (!select) return;
-
+  function setLabelAndHelp(select) {
     const dialog = select.closest("dialog") || document;
-    const labels = Array.from(dialog.querySelectorAll("label"));
-    labels.forEach((label) => {
+    Array.from(dialog.querySelectorAll("label")).forEach(label => {
       const txt = label.textContent || "";
       if ((label.getAttribute("for") || "") === select.id || txt.includes("Επιλογή") || txt.includes("αποστολή")) {
         label.textContent = "Επιλογή από ρόστερ";
       }
     });
 
-    let help = q("rosterSelectHelpV819");
+    // Remove duplicate help messages from older versions.
+    dialog.querySelectorAll("#rosterSelectHelpV818, #positionSuggestionV816, #rosterSelectHelpV819").forEach(el => el.remove());
+
+    let help = q("rosterHelpV820");
     if (!help) {
       help = document.createElement("div");
-      help.id = "rosterSelectHelpV819";
-      help.className = "roster-select-help-v819";
+      help.id = "rosterHelpV820";
+      help.className = "roster-help-v820";
       select.insertAdjacentElement("afterend", help);
     }
+    help.textContent = "Πρώτα εμφανίζονται οι προτεινόμενοι για τη θέση, μετά όλο το ρόστερ.";
   }
 
-  function fillPopupSelect(keepValue) {
+  function fillSelectOnce(force) {
     const select = getPopupSelect();
     if (!select) return;
 
-    const previous = keepValue || select.value || "";
-    const index = currentEditingIndexFromDialog();
-    const pos = detectPosition(index);
-    const all = rosterPlayers();
+    const current = select.value || "";
+    const idx = getIndex();
+    const pos = getPosition(idx);
+    const all = roster();
+    const rec = pos ? all.filter(p => positions(p).includes(pos)) : [];
+    const recIds = new Set(rec.map(p => String(p.id)));
+    const others = all.filter(p => !recIds.has(String(p.id)));
 
-    const recommended = pos ? all.filter((p) => positionsOf(p).includes(pos)) : [];
-    const recommendedIds = new Set(recommended.map((p) => String(p.id)));
-    const others = all.filter((p) => !recommendedIds.has(String(p.id)));
+    const signature = JSON.stringify({
+      ids: all.map(p => [p.id, p.name, p.number, p.positions]),
+      pos
+    });
+
+    if (!force && signature === lastRenderedSelectSignature && select.dataset.v820Filled === "1") {
+      setLabelAndHelp(select);
+      return;
+    }
+    lastRenderedSelectSignature = signature;
 
     let html = '<option value="">-- διάλεξε παίκτη από ρόστερ --</option>';
-
-    if (recommended.length) {
+    if (rec.length) {
       html += `<optgroup label="Προτεινόμενοι για ${pos}">`;
-      html += recommended.map((p) => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
+      html += rec.map(p => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
       html += "</optgroup>";
     }
-
     html += '<optgroup label="Όλο το ρόστερ">';
-    html += others.map((p) => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
+    html += others.map(p => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
     html += "</optgroup>";
 
     select.innerHTML = html;
-    if (previous && all.some((p) => String(p.id) === String(previous))) select.value = previous;
-
-    setDialogLabels(select);
-
-    const help = q("rosterSelectHelpV819");
-    if (help) {
-      if (recommended.length) help.textContent = `Προτείνονται πρώτα όσοι έχουν θέση ${pos}. Από κάτω υπάρχει όλο το ρόστερ.`;
-      else help.textContent = "Εμφανίζεται όλο το ρόστερ. Όταν δηλώσεις θέσεις στους παίκτες, θα εμφανίζονται προτεινόμενοι πρώτα.";
-    }
+    select.dataset.v820Filled = "1";
+    if (current && all.some(p => String(p.id) === String(current))) select.value = current;
+    setLabelAndHelp(select);
   }
 
-  function updateGlobals(index, player) {
+  function updateGlobals(index, p) {
     try {
       if (index !== null && typeof players !== "undefined" && Array.isArray(players) && players[index]) {
-        players[index].name = player.name || "";
-        players[index].number = player.number || "";
+        players[index].name = p.name || "";
+        players[index].number = p.number || "";
       }
-    } catch (err) {}
+    } catch(e) {}
   }
 
   function visibleLineupNameInputs() {
     return Array.from(document.querySelectorAll("input"))
-      .filter((el) => {
-        if (el.type === "file" || el.type === "hidden") return false;
+      .filter(el => {
+        if (el.type === "file" || el.type === "hidden" || !el.offsetParent) return false;
         const ph = (el.placeholder || "").toLowerCase();
         const id = (el.id || "").toLowerCase();
-        const name = (el.name || "").toLowerCase();
-        return (
-          ph.includes("παίκ") ||
-          ph.includes("παικ") ||
-          id.includes("player") ||
-          name.includes("player")
-        ) && el.offsetParent !== null;
+        return ph.includes("παίκ") || ph.includes("παικ") || id.includes("playername") || id.includes("player-name");
       });
   }
 
-  function updateLeftList(index, player) {
+  function updateLeft(index, p) {
     if (index === null) return;
-
-    // Prefer exact row inputs from render.
-    let nameInput = document.querySelector(
-      `input[data-player-index="${index}"][data-field="name"], input[data-index="${index}"][data-field="name"], #playerName${index}, #player-${index}-name`
-    );
-    let numberInput = document.querySelector(
-      `input[data-player-index="${index}"][data-field="number"], input[data-index="${index}"][data-field="number"], #playerNumber${index}, #player-${index}-number`
-    );
-
-    if (!nameInput) nameInput = visibleLineupNameInputs()[index] || null;
-
+    const inputs = visibleLineupNameInputs();
+    const nameInput = inputs[index];
     if (nameInput) {
-      nameInput.value = player.name || "";
-      nameInput.setAttribute("list", "rosterNamesDatalistV819");
-      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+      nameInput.value = p.name || "";
+      nameInput.dispatchEvent(new Event("input", { bubbles:true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles:true }));
 
       const row = nameInput.closest("tr, .player-row, .lineup-row, .player-input-row, div");
-      if (!numberInput && row) {
-        numberInput = Array.from(row.querySelectorAll("input"))
-          .find((el) => el !== nameInput && (el.placeholder || "").toLowerCase().includes("no"));
+      const num = row ? Array.from(row.querySelectorAll("input")).find(el => el !== nameInput && ((el.placeholder || "").toLowerCase().includes("no") || el.type === "number")) : null;
+      if (num) {
+        num.value = p.number || "";
+        num.dispatchEvent(new Event("input", { bubbles:true }));
+        num.dispatchEvent(new Event("change", { bubbles:true }));
       }
     }
-
-    if (numberInput) {
-      numberInput.value = player.number || "";
-      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
-      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
   }
 
-  function updatePopupInputs(player) {
+  function updatePopup(p) {
     const dialog = document.querySelector("dialog[open]") || document;
-    const inputs = Array.from(dialog.querySelectorAll("input")).filter((el) => el.type !== "file" && el.type !== "hidden");
-
-    const nameInput =
-      q("quickPlayerNameV72") ||
-      q("quickPlayerName") ||
-      inputs.find((el) => (el.previousElementSibling?.textContent || "").includes("Όνομα")) ||
-      inputs.find((el) => (el.id || "").toLowerCase().includes("name"));
-
-    const numberInput =
-      q("quickPlayerNumberV72") ||
-      q("quickPlayerNumber") ||
-      inputs.find((el) => (el.previousElementSibling?.textContent || "").includes("Αριθ")) ||
-      inputs.find((el) => (el.id || "").toLowerCase().includes("number"));
+    const inputs = Array.from(dialog.querySelectorAll("input")).filter(el => el.type !== "file" && el.type !== "hidden");
+    const nameInput = inputs.find(el => {
+      const prev = el.previousElementSibling?.textContent || "";
+      const id = el.id || "";
+      return prev.includes("Όνομα") || id.toLowerCase().includes("name");
+    });
+    const numInput = inputs.find(el => {
+      const prev = el.previousElementSibling?.textContent || "";
+      const id = el.id || "";
+      return prev.includes("Αριθ") || id.toLowerCase().includes("number");
+    });
 
     if (nameInput) {
-      nameInput.value = player.name || "";
-      nameInput.setAttribute("list", "rosterNamesDatalistV819");
-      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+      nameInput.value = p.name || "";
+      nameInput.dispatchEvent(new Event("input", { bubbles:true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles:true }));
     }
-
-    if (numberInput) {
-      numberInput.value = player.number || "";
-      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
-      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
+    if (numInput) {
+      numInput.value = p.number || "";
+      numInput.dispatchEvent(new Event("input", { bubbles:true }));
+      numInput.dispatchEvent(new Event("change", { bubbles:true }));
     }
   }
 
-  function applyPlayerToPosition(playerId) {
-    const player = rosterPlayers().find((p) => String(p.id) === String(playerId));
-    if (!player) return;
+  function forceFullNames() {
+    document.querySelectorAll(".player, .player-token, .player-marker, .pitch-player, .player-chip").forEach(el => {
+      el.style.width = "auto";
+      el.style.minWidth = "98px";
+      el.style.maxWidth = "260px";
+      el.style.overflow = "visible";
+      el.querySelectorAll("*").forEach(child => {
+        child.style.whiteSpace = "normal";
+        child.style.overflow = "visible";
+        child.style.textOverflow = "clip";
+      });
+    });
+  }
 
-    const index = currentEditingIndexFromDialog();
-
-    updateGlobals(index, player);
-    updatePopupInputs(player);
+  function applyPlayer(p) {
+    const idx = getIndex();
+    updateGlobals(idx, p);
+    updatePopup(p);
 
     try {
       if (typeof render === "function") render();
@@ -3785,100 +3243,143 @@ load();render();
         if (typeof renderPlayerInputs === "function") renderPlayerInputs();
         if (typeof renderSubs === "function") renderSubs();
       }
-    } catch (err) {}
+    } catch(e) {}
 
-    setTimeout(function () {
-      updateLeftList(index, player);
+    setTimeout(() => {
+      updateLeft(idx, p);
+      forceFullNames();
       saveNow();
-    }, 120);
-  }
-
-  function buildDatalist() {
-    let dl = q("rosterNamesDatalistV819");
-    if (!dl) {
-      dl = document.createElement("datalist");
-      dl.id = "rosterNamesDatalistV819";
-      document.body.appendChild(dl);
-    }
-    dl.innerHTML = rosterPlayers().map((p) => `<option value="${p.name}"></option>`).join("");
-  }
-
-  function attachAutocomplete() {
-    buildDatalist();
-
-    visibleLineupNameInputs().forEach((input, index) => {
-      if (input.dataset.v819Auto === "1") return;
-      input.dataset.v819Auto = "1";
-      input.setAttribute("list", "rosterNamesDatalistV819");
-
-      input.addEventListener("change", function () {
-        const player = rosterByName(input.value);
-        if (!player) return;
-
-        updateGlobals(index, player);
-        updateLeftList(index, player);
-
-        try {
-          if (typeof render === "function") render();
-        } catch (err) {}
-
-        setTimeout(function () {
-          updateLeftList(index, player);
-          saveNow();
-        }, 120);
-      });
-    });
+    }, 150);
   }
 
   function wireSelect() {
     const select = getPopupSelect();
     if (!select) return;
 
-    if (select.dataset.v819Ready !== "1") {
-      select.dataset.v819Ready = "1";
-      select.addEventListener("mousedown", function () { fillPopupSelect(select.value); }, true);
-      select.addEventListener("touchstart", function () { fillPopupSelect(select.value); }, true);
-      select.addEventListener("focus", function () { fillPopupSelect(select.value); }, true);
-      select.addEventListener("change", function () {
-        const val = select.value;
-        applyPlayerToPosition(val);
-      }, true);
-    }
+    fillSelectOnce(false);
 
-    fillPopupSelect(select.value);
+    if (select.dataset.v820Ready === "1") return;
+    select.dataset.v820Ready = "1";
+
+    select.addEventListener("pointerdown", () => fillSelectOnce(false), true);
+    select.addEventListener("focus", () => fillSelectOnce(false), true);
+    select.addEventListener("change", () => {
+      const p = playerById(select.value);
+      if (p) applyPlayer(p);
+    }, true);
   }
 
-  function rememberClickedIndex() {
-    document.addEventListener("click", function (event) {
-      const el = event.target.closest("[data-player-index], [data-index], .player, .player-token, .player-marker");
-      if (!el) return;
+  function suggestionBox() {
+    let box = q("rosterSuggestionsV820");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "rosterSuggestionsV820";
+      box.className = "roster-suggestions-v820";
+      document.body.appendChild(box);
+    }
+    return box;
+  }
 
-      const raw = el.dataset?.playerIndex || el.dataset?.index;
-      if (raw !== undefined && raw !== null && raw !== "") {
-        const n = Number(raw);
-        if (Number.isFinite(n)) window.__lastClickedPlayerIndexV819 = n;
-      } else {
-        const all = Array.from(document.querySelectorAll(".player, .player-token, .player-marker"));
-        const n = all.indexOf(el);
-        if (n >= 0) window.__lastClickedPlayerIndexV819 = n;
+  function showSuggestions(input, index) {
+    const value = clean(input.value);
+    const box = suggestionBox();
+
+    if (!value) {
+      box.style.display = "none";
+      return;
+    }
+
+    const matches = roster().filter(p => clean(p.name).startsWith(value)).slice(0, 8);
+    if (!matches.length) {
+      box.style.display = "none";
+      return;
+    }
+
+    const rect = input.getBoundingClientRect();
+    box.style.left = rect.left + "px";
+    box.style.top = (rect.bottom + 4) + "px";
+    box.style.width = Math.max(rect.width, 220) + "px";
+    box.innerHTML = matches.map(p => `<div class="roster-suggestion-v820" data-id="${p.id}">${p.name}</div>`).join("");
+    box.style.display = "block";
+
+    box.querySelectorAll(".roster-suggestion-v820").forEach(item => {
+      item.addEventListener("mousedown", e => {
+        e.preventDefault();
+        const p = playerById(item.dataset.id);
+        if (!p) return;
+        activeIndex = index;
+        input.value = p.name;
+        applyPlayer(p);
+        box.style.display = "none";
+      });
+    });
+  }
+
+  function wireAutocomplete() {
+    visibleLineupNameInputs().forEach((input, index) => {
+      input.removeAttribute("list");
+      if (input.dataset.v820Auto === "1") return;
+      input.dataset.v820Auto = "1";
+
+      input.addEventListener("input", () => {
+        activeIndex = index;
+        showSuggestions(input, index);
+      });
+
+      input.addEventListener("focus", () => {
+        activeIndex = index;
+        showSuggestions(input, index);
+      });
+
+      input.addEventListener("change", () => {
+        const p = playerByName(input.value);
+        if (p) {
+          activeIndex = index;
+          applyPlayer(p);
+        }
+      });
+    });
+  }
+
+  function rememberClickedPlayer() {
+    document.addEventListener("click", e => {
+      const token = e.target.closest(".player, .player-token, .player-marker, .pitch-player, .player-chip, [data-player-index], [data-index]");
+      if (!token) return;
+
+      let raw = token.dataset?.playerIndex || token.dataset?.index;
+      if (raw === undefined || raw === null || raw === "") {
+        const all = Array.from(document.querySelectorAll(".player, .player-token, .player-marker, .pitch-player, .player-chip"));
+        raw = all.indexOf(token);
       }
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 0) activeIndex = n;
 
-      setTimeout(function () {
+      setTimeout(() => {
         wireSelect();
-        attachAutocomplete();
-      }, 180);
+        fillSelectOnce(true);
+        forceFullNames();
+      }, 200);
     }, true);
   }
 
   function init() {
-    rememberClickedIndex();
-    attachAutocomplete();
-    wireSelect();
+    rememberClickedPlayer();
+    wireAutocomplete();
+    forceFullNames();
 
-    setInterval(function () {
-      attachAutocomplete();
+    document.addEventListener("click", e => {
+      const box = q("rosterSuggestionsV820");
+      if (box && !e.target.closest("#rosterSuggestionsV820") && !e.target.matches("input")) {
+        box.style.display = "none";
+      }
+      setTimeout(wireSelect, 100);
+    }, true);
+
+    setInterval(() => {
+      wireAutocomplete();
       if (document.querySelector("dialog[open]")) wireSelect();
-    }, 800);
+      forceFullNames();
+    }, 1200);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
