@@ -3539,3 +3539,348 @@ load();render();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();
+
+
+/* ===== v8.1.9 stable roster select + autocomplete ===== */
+(function () {
+  const ROSTER_KEY = "footballCoachV74Roster";
+
+  function q(id) { return document.getElementById(id); }
+
+  function load(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || ""); }
+    catch (err) { return fallback; }
+  }
+
+  function saveNow() {
+    try { if (typeof save === "function") save(); } catch (err) {}
+    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (err) {}
+  }
+
+  function clean(value) {
+    return String(value || "")
+      .trim()
+      .toLocaleLowerCase("el-GR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function rosterPlayers() {
+    const data = load(ROSTER_KEY, { roster: [] });
+    return (Array.isArray(data.roster) ? data.roster : [])
+      .filter((p) => p && p.name)
+      .sort((a, b) => clean(a.name).localeCompare(clean(b.name), "el", { sensitivity: "base", numeric: true }));
+  }
+
+  function rosterByName(name) {
+    const target = clean(name);
+    return rosterPlayers().find((p) => clean(p.name) === target);
+  }
+
+  function positionsOf(player) {
+    return String(player.positions || "")
+      .toUpperCase()
+      .replace(/[./|]/g, ",")
+      .split(/[,\s]+/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  function currentEditingIndexFromDialog() {
+    try {
+      if (typeof editingPlayerIndex !== "undefined" && editingPlayerIndex !== null && editingPlayerIndex !== "") {
+        const n = Number(editingPlayerIndex);
+        if (Number.isFinite(n)) return n;
+      }
+    } catch (err) {}
+
+    const dialog = document.querySelector("dialog[open]");
+    const fromDialog = dialog?.dataset?.playerIndex || dialog?.dataset?.index || dialog?.getAttribute("data-player-index") || dialog?.getAttribute("data-index");
+    if (fromDialog !== undefined && fromDialog !== null && fromDialog !== "") {
+      const n = Number(fromDialog);
+      if (Number.isFinite(n)) return n;
+    }
+
+    return window.__lastClickedPlayerIndexV819 ?? null;
+  }
+
+  function detectPosition(index) {
+    try {
+      if (index !== null && typeof players !== "undefined" && players[index]) {
+        return String(players[index].pos || players[index].position || "").toUpperCase();
+      }
+    } catch (err) {}
+
+    const openDialog = document.querySelector("dialog[open]");
+    const txt = openDialog?.textContent || "";
+    const m = txt.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/);
+    return m ? m[1] : "";
+  }
+
+  function getPopupSelect() {
+    return q("assignFromSquadV74") ||
+      q("quickPlayerSelect") ||
+      document.querySelector('dialog[open] select[id*="Squad"], dialog[open] select[id*="Player"], dialog[open] select');
+  }
+
+  function setDialogLabels(select) {
+    if (!select) return;
+
+    const dialog = select.closest("dialog") || document;
+    const labels = Array.from(dialog.querySelectorAll("label"));
+    labels.forEach((label) => {
+      const txt = label.textContent || "";
+      if ((label.getAttribute("for") || "") === select.id || txt.includes("Επιλογή") || txt.includes("αποστολή")) {
+        label.textContent = "Επιλογή από ρόστερ";
+      }
+    });
+
+    let help = q("rosterSelectHelpV819");
+    if (!help) {
+      help = document.createElement("div");
+      help.id = "rosterSelectHelpV819";
+      help.className = "roster-select-help-v819";
+      select.insertAdjacentElement("afterend", help);
+    }
+  }
+
+  function fillPopupSelect(keepValue) {
+    const select = getPopupSelect();
+    if (!select) return;
+
+    const previous = keepValue || select.value || "";
+    const index = currentEditingIndexFromDialog();
+    const pos = detectPosition(index);
+    const all = rosterPlayers();
+
+    const recommended = pos ? all.filter((p) => positionsOf(p).includes(pos)) : [];
+    const recommendedIds = new Set(recommended.map((p) => String(p.id)));
+    const others = all.filter((p) => !recommendedIds.has(String(p.id)));
+
+    let html = '<option value="">-- διάλεξε παίκτη από ρόστερ --</option>';
+
+    if (recommended.length) {
+      html += `<optgroup label="Προτεινόμενοι για ${pos}">`;
+      html += recommended.map((p) => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
+      html += "</optgroup>";
+    }
+
+    html += '<optgroup label="Όλο το ρόστερ">';
+    html += others.map((p) => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
+    html += "</optgroup>";
+
+    select.innerHTML = html;
+    if (previous && all.some((p) => String(p.id) === String(previous))) select.value = previous;
+
+    setDialogLabels(select);
+
+    const help = q("rosterSelectHelpV819");
+    if (help) {
+      if (recommended.length) help.textContent = `Προτείνονται πρώτα όσοι έχουν θέση ${pos}. Από κάτω υπάρχει όλο το ρόστερ.`;
+      else help.textContent = "Εμφανίζεται όλο το ρόστερ. Όταν δηλώσεις θέσεις στους παίκτες, θα εμφανίζονται προτεινόμενοι πρώτα.";
+    }
+  }
+
+  function updateGlobals(index, player) {
+    try {
+      if (index !== null && typeof players !== "undefined" && Array.isArray(players) && players[index]) {
+        players[index].name = player.name || "";
+        players[index].number = player.number || "";
+      }
+    } catch (err) {}
+  }
+
+  function visibleLineupNameInputs() {
+    return Array.from(document.querySelectorAll("input"))
+      .filter((el) => {
+        if (el.type === "file" || el.type === "hidden") return false;
+        const ph = (el.placeholder || "").toLowerCase();
+        const id = (el.id || "").toLowerCase();
+        const name = (el.name || "").toLowerCase();
+        return (
+          ph.includes("παίκ") ||
+          ph.includes("παικ") ||
+          id.includes("player") ||
+          name.includes("player")
+        ) && el.offsetParent !== null;
+      });
+  }
+
+  function updateLeftList(index, player) {
+    if (index === null) return;
+
+    // Prefer exact row inputs from render.
+    let nameInput = document.querySelector(
+      `input[data-player-index="${index}"][data-field="name"], input[data-index="${index}"][data-field="name"], #playerName${index}, #player-${index}-name`
+    );
+    let numberInput = document.querySelector(
+      `input[data-player-index="${index}"][data-field="number"], input[data-index="${index}"][data-field="number"], #playerNumber${index}, #player-${index}-number`
+    );
+
+    if (!nameInput) nameInput = visibleLineupNameInputs()[index] || null;
+
+    if (nameInput) {
+      nameInput.value = player.name || "";
+      nameInput.setAttribute("list", "rosterNamesDatalistV819");
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+      const row = nameInput.closest("tr, .player-row, .lineup-row, .player-input-row, div");
+      if (!numberInput && row) {
+        numberInput = Array.from(row.querySelectorAll("input"))
+          .find((el) => el !== nameInput && (el.placeholder || "").toLowerCase().includes("no"));
+      }
+    }
+
+    if (numberInput) {
+      numberInput.value = player.number || "";
+      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
+      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  function updatePopupInputs(player) {
+    const dialog = document.querySelector("dialog[open]") || document;
+    const inputs = Array.from(dialog.querySelectorAll("input")).filter((el) => el.type !== "file" && el.type !== "hidden");
+
+    const nameInput =
+      q("quickPlayerNameV72") ||
+      q("quickPlayerName") ||
+      inputs.find((el) => (el.previousElementSibling?.textContent || "").includes("Όνομα")) ||
+      inputs.find((el) => (el.id || "").toLowerCase().includes("name"));
+
+    const numberInput =
+      q("quickPlayerNumberV72") ||
+      q("quickPlayerNumber") ||
+      inputs.find((el) => (el.previousElementSibling?.textContent || "").includes("Αριθ")) ||
+      inputs.find((el) => (el.id || "").toLowerCase().includes("number"));
+
+    if (nameInput) {
+      nameInput.value = player.name || "";
+      nameInput.setAttribute("list", "rosterNamesDatalistV819");
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      nameInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    if (numberInput) {
+      numberInput.value = player.number || "";
+      numberInput.dispatchEvent(new Event("input", { bubbles: true }));
+      numberInput.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  function applyPlayerToPosition(playerId) {
+    const player = rosterPlayers().find((p) => String(p.id) === String(playerId));
+    if (!player) return;
+
+    const index = currentEditingIndexFromDialog();
+
+    updateGlobals(index, player);
+    updatePopupInputs(player);
+
+    try {
+      if (typeof render === "function") render();
+      else {
+        if (typeof renderPitch === "function") renderPitch();
+        if (typeof renderPlayerInputs === "function") renderPlayerInputs();
+        if (typeof renderSubs === "function") renderSubs();
+      }
+    } catch (err) {}
+
+    setTimeout(function () {
+      updateLeftList(index, player);
+      saveNow();
+    }, 120);
+  }
+
+  function buildDatalist() {
+    let dl = q("rosterNamesDatalistV819");
+    if (!dl) {
+      dl = document.createElement("datalist");
+      dl.id = "rosterNamesDatalistV819";
+      document.body.appendChild(dl);
+    }
+    dl.innerHTML = rosterPlayers().map((p) => `<option value="${p.name}"></option>`).join("");
+  }
+
+  function attachAutocomplete() {
+    buildDatalist();
+
+    visibleLineupNameInputs().forEach((input, index) => {
+      if (input.dataset.v819Auto === "1") return;
+      input.dataset.v819Auto = "1";
+      input.setAttribute("list", "rosterNamesDatalistV819");
+
+      input.addEventListener("change", function () {
+        const player = rosterByName(input.value);
+        if (!player) return;
+
+        updateGlobals(index, player);
+        updateLeftList(index, player);
+
+        try {
+          if (typeof render === "function") render();
+        } catch (err) {}
+
+        setTimeout(function () {
+          updateLeftList(index, player);
+          saveNow();
+        }, 120);
+      });
+    });
+  }
+
+  function wireSelect() {
+    const select = getPopupSelect();
+    if (!select) return;
+
+    if (select.dataset.v819Ready !== "1") {
+      select.dataset.v819Ready = "1";
+      select.addEventListener("mousedown", function () { fillPopupSelect(select.value); }, true);
+      select.addEventListener("touchstart", function () { fillPopupSelect(select.value); }, true);
+      select.addEventListener("focus", function () { fillPopupSelect(select.value); }, true);
+      select.addEventListener("change", function () {
+        const val = select.value;
+        applyPlayerToPosition(val);
+      }, true);
+    }
+
+    fillPopupSelect(select.value);
+  }
+
+  function rememberClickedIndex() {
+    document.addEventListener("click", function (event) {
+      const el = event.target.closest("[data-player-index], [data-index], .player, .player-token, .player-marker");
+      if (!el) return;
+
+      const raw = el.dataset?.playerIndex || el.dataset?.index;
+      if (raw !== undefined && raw !== null && raw !== "") {
+        const n = Number(raw);
+        if (Number.isFinite(n)) window.__lastClickedPlayerIndexV819 = n;
+      } else {
+        const all = Array.from(document.querySelectorAll(".player, .player-token, .player-marker"));
+        const n = all.indexOf(el);
+        if (n >= 0) window.__lastClickedPlayerIndexV819 = n;
+      }
+
+      setTimeout(function () {
+        wireSelect();
+        attachAutocomplete();
+      }, 180);
+    }, true);
+  }
+
+  function init() {
+    rememberClickedIndex();
+    attachAutocomplete();
+    wireSelect();
+
+    setInterval(function () {
+      attachAutocomplete();
+      if (document.querySelector("dialog[open]")) wireSelect();
+    }, 800);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
