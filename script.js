@@ -3026,362 +3026,41 @@ load();render();
 /* removed old unstable roster selector */
 
 
-/* ===== v8.2.0 stable roster select + custom autocomplete + full name ===== */
-(function () {
-  const ROSTER_KEY = "footballCoachV74Roster";
-  let activeIndex = null;
-  let lastRenderedSelectSignature = "";
 
-  function q(id) { return document.getElementById(id); }
+/* removed old roster selector */
 
-  function load(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key) || ""); } catch (e) { return fallback; }
-  }
 
-  function saveNow() {
-    try { if (typeof save === "function") save(); } catch (e) {}
-    try { if (window.FootballCoachStorage) window.FootballCoachStorage.saveNow(); } catch (e) {}
-  }
-
-  function clean(s) {
-    return String(s || "").trim().toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function roster() {
-    const data = load(ROSTER_KEY, { roster: [] });
-    return (Array.isArray(data.roster) ? data.roster : [])
-      .filter(p => p && p.name)
-      .sort((a,b) => clean(a.name).localeCompare(clean(b.name), "el", { sensitivity:"base", numeric:true }));
-  }
-
-  function playerById(id) {
-    return roster().find(p => String(p.id) === String(id));
-  }
-
-  function playerByName(name) {
-    return roster().find(p => clean(p.name) === clean(name));
-  }
-
-  function getIndex() {
-    if (activeIndex !== null && Number.isFinite(Number(activeIndex))) return Number(activeIndex);
-    try {
-      if (typeof editingPlayerIndex !== "undefined" && editingPlayerIndex !== null && editingPlayerIndex !== "") {
-        const n = Number(editingPlayerIndex);
-        if (Number.isFinite(n)) return n;
-      }
-    } catch(e) {}
-    return null;
-  }
-
-  function getPosition(index) {
-    try {
-      if (index !== null && typeof players !== "undefined" && Array.isArray(players) && players[index]) {
-        return String(players[index].pos || players[index].position || "").toUpperCase();
-      }
-    } catch(e) {}
-    return "";
-  }
-
-  function positions(p) {
-    return String(p.positions || "").toUpperCase().replace(/[./|]/g,",").split(/[,\s]+/).map(x=>x.trim()).filter(Boolean);
-  }
-
-  function getPopupSelect() {
-    const dialog = document.querySelector("dialog[open]");
-    if (!dialog) return null;
-    return q("assignFromSquadV74") || q("quickPlayerSelect") || dialog.querySelector("select");
-  }
-
-  function setLabelAndHelp(select) {
-    const dialog = select.closest("dialog") || document;
-    Array.from(dialog.querySelectorAll("label")).forEach(label => {
-      const txt = label.textContent || "";
-      if ((label.getAttribute("for") || "") === select.id || txt.includes("Επιλογή") || txt.includes("αποστολή")) {
-        label.textContent = "Επιλογή από ρόστερ";
-      }
-    });
-
-    // Remove duplicate help messages from older versions.
-    dialog.querySelectorAll("#rosterSelectHelpV818, #positionSuggestionV816, #rosterSelectHelpV819").forEach(el => el.remove());
-
-    let help = q("rosterHelpV820");
-    if (!help) {
-      help = document.createElement("div");
-      help.id = "rosterHelpV820";
-      help.className = "roster-help-v820";
-      select.insertAdjacentElement("afterend", help);
-    }
-    help.textContent = "Πρώτα εμφανίζονται οι προτεινόμενοι για τη θέση, μετά όλο το ρόστερ.";
-  }
-
-  function fillSelectOnce(force) {
-    const select = getPopupSelect();
-    if (!select) return;
-
-    const current = select.value || "";
-    const idx = getIndex();
-    const pos = getPosition(idx);
-    const all = roster();
-    const rec = pos ? all.filter(p => positions(p).includes(pos)) : [];
-    const recIds = new Set(rec.map(p => String(p.id)));
-    const others = all.filter(p => !recIds.has(String(p.id)));
-
-    const signature = JSON.stringify({
-      ids: all.map(p => [p.id, p.name, p.number, p.positions]),
-      pos
-    });
-
-    if (!force && signature === lastRenderedSelectSignature && select.dataset.v820Filled === "1") {
-      setLabelAndHelp(select);
-      return;
-    }
-    lastRenderedSelectSignature = signature;
-
-    let html = '<option value="">-- διάλεξε παίκτη από ρόστερ --</option>';
-    if (rec.length) {
-      html += `<optgroup label="Προτεινόμενοι για ${pos}">`;
-      html += rec.map(p => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
-      html += "</optgroup>";
-    }
-    html += '<optgroup label="Όλο το ρόστερ">';
-    html += others.map(p => `<option value="${p.id}">${p.name}${p.number ? " #" + p.number : ""}${p.positions ? " • " + p.positions : ""}</option>`).join("");
-    html += "</optgroup>";
-
-    select.innerHTML = html;
-    select.dataset.v820Filled = "1";
-    if (current && all.some(p => String(p.id) === String(current))) select.value = current;
-    setLabelAndHelp(select);
-  }
-
-  function updateGlobals(index, p) {
-    try {
-      if (index !== null && typeof players !== "undefined" && Array.isArray(players) && players[index]) {
-        players[index].name = p.name || "";
-        players[index].number = p.number || "";
-      }
-    } catch(e) {}
-  }
-
-  function visibleLineupNameInputs() {
-    return Array.from(document.querySelectorAll("input"))
-      .filter(el => {
-        if (el.type === "file" || el.type === "hidden" || !el.offsetParent) return false;
-        const ph = (el.placeholder || "").toLowerCase();
-        const id = (el.id || "").toLowerCase();
-        return ph.includes("παίκ") || ph.includes("παικ") || id.includes("playername") || id.includes("player-name");
-      });
-  }
-
-  function updateLeft(index, p) {
-    if (index === null) return;
-    const inputs = visibleLineupNameInputs();
-    const nameInput = inputs[index];
-    if (nameInput) {
-      nameInput.value = p.name || "";
-      nameInput.dispatchEvent(new Event("input", { bubbles:true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles:true }));
-
-      const row = nameInput.closest("tr, .player-row, .lineup-row, .player-input-row, div");
-      const num = row ? Array.from(row.querySelectorAll("input")).find(el => el !== nameInput && ((el.placeholder || "").toLowerCase().includes("no") || el.type === "number")) : null;
-      if (num) {
-        num.value = p.number || "";
-        num.dispatchEvent(new Event("input", { bubbles:true }));
-        num.dispatchEvent(new Event("change", { bubbles:true }));
-      }
-    }
-  }
-
-  function updatePopup(p) {
-    const dialog = document.querySelector("dialog[open]") || document;
-    const inputs = Array.from(dialog.querySelectorAll("input")).filter(el => el.type !== "file" && el.type !== "hidden");
-    const nameInput = inputs.find(el => {
-      const prev = el.previousElementSibling?.textContent || "";
-      const id = el.id || "";
-      return prev.includes("Όνομα") || id.toLowerCase().includes("name");
-    });
-    const numInput = inputs.find(el => {
-      const prev = el.previousElementSibling?.textContent || "";
-      const id = el.id || "";
-      return prev.includes("Αριθ") || id.toLowerCase().includes("number");
-    });
-
-    if (nameInput) {
-      nameInput.value = p.name || "";
-      nameInput.dispatchEvent(new Event("input", { bubbles:true }));
-      nameInput.dispatchEvent(new Event("change", { bubbles:true }));
-    }
-    if (numInput) {
-      numInput.value = p.number || "";
-      numInput.dispatchEvent(new Event("input", { bubbles:true }));
-      numInput.dispatchEvent(new Event("change", { bubbles:true }));
-    }
-  }
-
-  function forceFullNames() {
-    document.querySelectorAll(".player, .player-token, .player-marker, .pitch-player, .player-chip").forEach(el => {
-      el.style.width = "auto";
-      el.style.minWidth = "98px";
-      el.style.maxWidth = "260px";
-      el.style.overflow = "visible";
-      el.querySelectorAll("*").forEach(child => {
-        child.style.whiteSpace = "normal";
-        child.style.overflow = "visible";
-        child.style.textOverflow = "clip";
-      });
-    });
-  }
-
-  function applyPlayer(p) {
-    const idx = getIndex();
-    updateGlobals(idx, p);
-    updatePopup(p);
-
-    try {
-      if (typeof render === "function") render();
-      else {
-        if (typeof renderPitch === "function") renderPitch();
-        if (typeof renderPlayerInputs === "function") renderPlayerInputs();
-        if (typeof renderSubs === "function") renderSubs();
-      }
-    } catch(e) {}
-
-    setTimeout(() => {
-      updateLeft(idx, p);
-      forceFullNames();
-      saveNow();
-    }, 150);
-  }
-
-  function wireSelect() {
-    const select = getPopupSelect();
-    if (!select) return;
-
-    fillSelectOnce(false);
-
-    if (select.dataset.v820Ready === "1") return;
-    select.dataset.v820Ready = "1";
-
-    select.addEventListener("pointerdown", () => fillSelectOnce(false), true);
-    select.addEventListener("focus", () => fillSelectOnce(false), true);
-    select.addEventListener("change", () => {
-      const p = playerById(select.value);
-      if (p) applyPlayer(p);
-    }, true);
-  }
-
-  function suggestionBox() {
-    let box = q("rosterSuggestionsV820");
-    if (!box) {
-      box = document.createElement("div");
-      box.id = "rosterSuggestionsV820";
-      box.className = "roster-suggestions-v820";
-      document.body.appendChild(box);
-    }
-    return box;
-  }
-
-  function showSuggestions(input, index) {
-    const value = clean(input.value);
-    const box = suggestionBox();
-
-    if (!value) {
-      box.style.display = "none";
-      return;
-    }
-
-    const matches = roster().filter(p => clean(p.name).startsWith(value)).slice(0, 8);
-    if (!matches.length) {
-      box.style.display = "none";
-      return;
-    }
-
-    const rect = input.getBoundingClientRect();
-    box.style.left = rect.left + "px";
-    box.style.top = (rect.bottom + 4) + "px";
-    box.style.width = Math.max(rect.width, 220) + "px";
-    box.innerHTML = matches.map(p => `<div class="roster-suggestion-v820" data-id="${p.id}">${p.name}</div>`).join("");
-    box.style.display = "block";
-
-    box.querySelectorAll(".roster-suggestion-v820").forEach(item => {
-      item.addEventListener("mousedown", e => {
-        e.preventDefault();
-        const p = playerById(item.dataset.id);
-        if (!p) return;
-        activeIndex = index;
-        input.value = p.name;
-        applyPlayer(p);
-        box.style.display = "none";
-      });
-    });
-  }
-
-  function wireAutocomplete() {
-    visibleLineupNameInputs().forEach((input, index) => {
-      input.removeAttribute("list");
-      if (input.dataset.v820Auto === "1") return;
-      input.dataset.v820Auto = "1";
-
-      input.addEventListener("input", () => {
-        activeIndex = index;
-        showSuggestions(input, index);
-      });
-
-      input.addEventListener("focus", () => {
-        activeIndex = index;
-        showSuggestions(input, index);
-      });
-
-      input.addEventListener("change", () => {
-        const p = playerByName(input.value);
-        if (p) {
-          activeIndex = index;
-          applyPlayer(p);
-        }
-      });
-    });
-  }
-
-  function rememberClickedPlayer() {
-    document.addEventListener("click", e => {
-      const token = e.target.closest(".player, .player-token, .player-marker, .pitch-player, .player-chip, [data-player-index], [data-index]");
-      if (!token) return;
-
-      let raw = token.dataset?.playerIndex || token.dataset?.index;
-      if (raw === undefined || raw === null || raw === "") {
-        const all = Array.from(document.querySelectorAll(".player, .player-token, .player-marker, .pitch-player, .player-chip"));
-        raw = all.indexOf(token);
-      }
-      const n = Number(raw);
-      if (Number.isFinite(n) && n >= 0) activeIndex = n;
-
-      setTimeout(() => {
-        wireSelect();
-        fillSelectOnce(true);
-        forceFullNames();
-      }, 200);
-    }, true);
-  }
-
-  function init() {
-    rememberClickedPlayer();
-    wireAutocomplete();
-    forceFullNames();
-
-    document.addEventListener("click", e => {
-      const box = q("rosterSuggestionsV820");
-      if (box && !e.target.closest("#rosterSuggestionsV820") && !e.target.matches("input")) {
-        box.style.display = "none";
-      }
-      setTimeout(wireSelect, 100);
-    }, true);
-
-    setInterval(() => {
-      wireAutocomplete();
-      if (document.querySelector("dialog[open]")) wireSelect();
-      forceFullNames();
-    }, 1200);
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+/* ===== v8.2.1 stable popup roster select + left autocomplete ===== */
+(function(){
+ const ROSTER_KEY="footballCoachV74Roster"; let activeIndex=null,lastDialog=null;
+ const q=id=>document.getElementById(id);
+ const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k)||"")}catch(e){return f}};
+ const saveNow=()=>{try{if(typeof save==="function")save()}catch(e){};try{if(window.FootballCoachStorage)window.FootballCoachStorage.saveNow()}catch(e){}};
+ const clean=s=>String(s||"").trim().toLocaleLowerCase("el-GR").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ const roster=()=>{const d=load(ROSTER_KEY,{roster:[]});return (Array.isArray(d.roster)?d.roster:[]).filter(p=>p&&p.name).sort((a,b)=>clean(a.name).localeCompare(clean(b.name),"el",{sensitivity:"base",numeric:true}))};
+ const byId=id=>roster().find(p=>String(p.id)===String(id));
+ const byName=name=>roster().find(p=>clean(p.name)===clean(name));
+ const posList=p=>String(p.positions||"").toUpperCase().replace(/[./|]/g,",").split(/[,\s]+/).map(x=>x.trim()).filter(Boolean);
+ const pitchTokens=()=>Array.from(document.querySelectorAll(".player,.player-token,.player-marker,.pitch-player,.player-chip"));
+ function idxFromEl(el){if(!el)return null;let raw=el.dataset?.playerIndex||el.dataset?.index||el.getAttribute("data-player-index")||el.getAttribute("data-index");if(raw!==undefined&&raw!==null&&raw!==""){let n=Number(raw);if(Number.isFinite(n))return n}let n=pitchTokens().indexOf(el);return n>=0?n:null}
+ function getIdx(){if(activeIndex!==null&&Number.isFinite(Number(activeIndex)))return Number(activeIndex);try{if(typeof editingPlayerIndex!=="undefined"&&editingPlayerIndex!==null&&editingPlayerIndex!==""){let n=Number(editingPlayerIndex);if(Number.isFinite(n))return n}}catch(e){}return null}
+ function getPos(i){try{if(i!==null&&typeof players!=="undefined"&&Array.isArray(players)&&players[i])return String(players[i].pos||players[i].position||"").toUpperCase()}catch(e){}let t=pitchTokens()[i]?.textContent||"";let m=t.match(/\b(GK|CB|LB|RB|CM|DM|AM|LW|RW|ST|CF|LWB|RWB)\b/);return m?m[1]:""}
+ const dlg=()=>document.querySelector("dialog[open]");
+ const popupSelect=()=>{let d=dlg();return d?(q("assignFromSquadV74")||q("quickPlayerSelect")||d.querySelector("select")):null};
+ function popupInputs(){let d=dlg()||document;let inputs=Array.from(d.querySelectorAll("input")).filter(el=>el.type!=="file"&&el.type!=="hidden");let name=inputs.find(el=>(el.previousElementSibling?.textContent||"").includes("Όνομα")||(el.id||"").toLowerCase().includes("name"));let num=inputs.find(el=>(el.previousElementSibling?.textContent||"").includes("Αριθ")||(el.id||"").toLowerCase().includes("number"));return{name,num}}
+ function clearOnNewDialog(){let d=dlg();if(!d||d===lastDialog)return;lastDialog=d;let {name,num}=popupInputs(); if(name)name.value=""; if(num)num.value=""; let s=popupSelect(); if(s)s.value=""}
+ function labelHelp(s){let d=s.closest("dialog")||document;Array.from(d.querySelectorAll("label")).forEach(l=>{let txt=l.textContent||"";if((l.getAttribute("for")||"")===s.id||txt.includes("Επιλογή")||txt.includes("αποστολή"))l.textContent="Επιλογή από ρόστερ"});d.querySelectorAll("#rosterSelectHelpV818,#positionSuggestionV816,#rosterSelectHelpV819,#rosterHelpV820").forEach(e=>e.remove());let h=q("rosterHelpV821");if(!h){h=document.createElement("div");h.id="rosterHelpV821";h.className="roster-help-v821";s.insertAdjacentElement("afterend",h)}h.textContent="Πρώτα προτεινόμενοι για τη θέση, μετά όλο το ρόστερ."}
+ function fillSelect(force=false){let s=popupSelect();if(!s)return;let i=getIdx(),pos=getPos(i),all=roster(),rec=pos?all.filter(p=>posList(p).includes(pos)):[],ids=new Set(rec.map(p=>String(p.id))),rest=all.filter(p=>!ids.has(String(p.id)));let sig=JSON.stringify([pos,all.map(p=>[p.id,p.name,p.number,p.positions])]);if(!force&&s.dataset.v821sig===sig){labelHelp(s);return}let val=s.value;let html='<option value="">-- διάλεξε παίκτη από ρόστερ --</option>';if(rec.length){html+=`<optgroup label="Προτεινόμενοι για ${pos}">`+rec.map(p=>`<option value="${p.id}">${p.name}${p.number?" #"+p.number:""}${p.positions?" • "+p.positions:""}</option>`).join("")+"</optgroup>"}html+='<optgroup label="Όλο το ρόστερ">'+rest.map(p=>`<option value="${p.id}">${p.name}${p.number?" #"+p.number:""}${p.positions?" • "+p.positions:""}</option>`).join("")+"</optgroup>";s.innerHTML=html;s.dataset.v821sig=sig;if(val&&all.some(p=>String(p.id)===String(val)))s.value=val;labelHelp(s)}
+ function visibleInputs(){return Array.from(document.querySelectorAll("input")).filter(el=>el.type!=="file"&&el.type!=="hidden"&&el.offsetParent&&(((el.placeholder||"").toLowerCase().includes("παίκ"))||((el.placeholder||"").toLowerCase().includes("παικ"))||(el.id||"").toLowerCase().includes("playername")||(el.id||"").toLowerCase().includes("player-name")))}
+ function setGlobal(i,p){try{if(i!==null&&typeof players!=="undefined"&&Array.isArray(players)&&players[i]){players[i].name=p.name||"";players[i].number=p.number||""}}catch(e){}}
+ function setLeft(i,p){if(i===null)return;let input=visibleInputs()[i];if(!input)return;input.value=p.name||"";input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));let row=input.closest("tr,.player-row,.lineup-row,.player-input-row,div");let n=row?Array.from(row.querySelectorAll("input")).find(el=>el!==input&&(((el.placeholder||"").toLowerCase().includes("no"))||el.type==="number")):null;if(n){n.value=p.number||"";n.dispatchEvent(new Event("input",{bubbles:true}));n.dispatchEvent(new Event("change",{bubbles:true}))}}
+ function setPopup(p){let {name,num}=popupInputs();if(name){name.value=p.name||"";name.dispatchEvent(new Event("input",{bubbles:true}));name.dispatchEvent(new Event("change",{bubbles:true}))}if(num){num.value=p.number||"";num.dispatchEvent(new Event("input",{bubbles:true}));num.dispatchEvent(new Event("change",{bubbles:true}))}}
+ function fullNames(){pitchTokens().forEach(el=>{el.style.width="auto";el.style.minWidth="104px";el.style.maxWidth="280px";el.style.overflow="visible";el.querySelectorAll("*").forEach(c=>{c.style.whiteSpace="normal";c.style.overflow="visible";c.style.textOverflow="clip"})})}
+ function apply(p){let i=getIdx();setGlobal(i,p);setPopup(p);try{if(typeof render==="function")render();else{if(typeof renderPitch==="function")renderPitch();if(typeof renderPlayerInputs==="function")renderPlayerInputs();if(typeof renderSubs==="function")renderSubs()}}catch(e){}setTimeout(()=>{setLeft(i,p);fullNames();saveNow()},120)}
+ function wireSelect(){let s=popupSelect();if(!s)return;fillSelect(false);if(s.dataset.v821evt==="1")return;s.dataset.v821evt="1";s.addEventListener("pointerdown",()=>fillSelect(false),true);s.addEventListener("focus",()=>fillSelect(false),true);s.addEventListener("change",()=>{let p=byId(s.value);if(p)apply(p)},true)}
+ function box(){let b=q("rosterSuggestionsV821");if(!b){b=document.createElement("div");b.id="rosterSuggestionsV821";b.className="roster-suggestions-v821";document.body.appendChild(b)}return b}
+ function show(input,i){let v=clean(input.value),b=box();if(!v){b.style.display="none";return}let ms=roster().filter(p=>clean(p.name).startsWith(v)).slice(0,10);if(!ms.length){b.style.display="none";return}let r=input.getBoundingClientRect();b.style.left=r.left+"px";b.style.top=(r.bottom+4)+"px";b.style.width=Math.max(r.width,220)+"px";b.innerHTML=ms.map(p=>`<div class="roster-suggestion-v821" data-id="${p.id}">${p.name}</div>`).join("");b.style.display="block";b.querySelectorAll(".roster-suggestion-v821").forEach(item=>item.addEventListener("mousedown",e=>{e.preventDefault();let p=byId(item.dataset.id);if(!p)return;activeIndex=i;input.value=p.name;setGlobal(i,p);setLeft(i,p);try{if(typeof render==="function")render()}catch(e){}setTimeout(()=>{setLeft(i,p);fullNames();saveNow()},120);b.style.display="none"}))}
+ function wireAuto(){visibleInputs().forEach((input,i)=>{input.removeAttribute("list");if(input.dataset.v821auto==="1")return;input.dataset.v821auto="1";input.addEventListener("input",()=>{activeIndex=i;show(input,i)});input.addEventListener("focus",()=>{activeIndex=i;show(input,i)});input.addEventListener("change",()=>{let p=byName(input.value);if(!p)return;activeIndex=i;setGlobal(i,p);setLeft(i,p);try{if(typeof render==="function")render()}catch(e){}setTimeout(()=>{setLeft(i,p);fullNames();saveNow()},120)})})}
+ function init(){document.addEventListener("click",e=>{let token=e.target.closest(".player,.player-token,.player-marker,.pitch-player,.player-chip,[data-player-index],[data-index]");if(token){let idx=idxFromEl(token);if(idx!==null)activeIndex=idx}setTimeout(()=>{clearOnNewDialog();wireSelect();fullNames()},120);let b=q("rosterSuggestionsV821");if(b&&!e.target.closest("#rosterSuggestionsV821")&&!e.target.matches("input"))b.style.display="none"},true);document.addEventListener("focusin",e=>{if(e.target&&e.target.tagName==="SELECT")setTimeout(wireSelect,50)},true);wireAuto();fullNames();setInterval(()=>{wireAuto();if(dlg()){clearOnNewDialog();wireSelect()}fullNames()},900)}
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
